@@ -71,8 +71,9 @@
   }
   window.SplateExtras.collectSettings = () => ({ ...collect(), routingRegion: $('setRoutingRegion').value, setupCompleted, lanBindAddress: $('setLanBindAddress').value, lanAuthEnabled: $('setLanAuthEnabled').checked, lanUsername: $('setLanUsername').value, lanPassword: $('setLanPassword').value });
 
-  const categories = { all: 'Все', appearance: 'Оформление', network: 'Подключение', profiles: 'Профили', security: 'DNS и защита', system: 'Система', advanced: 'Дополнительно' };
+  const categories = { all: 'Все', balancer: 'Балансировщик', appearance: 'Оформление', network: 'Подключение', profiles: 'Профили', security: 'DNS и защита', system: 'Система', advanced: 'Дополнительно' };
   const classify = section => {
+    if (section.querySelector('#setBalancerMode')) return 'balancer';
     if (section.querySelector('#setTheme')) return 'appearance';
     if (section.querySelector('#connectionProfileName')) return 'profiles';
     if (section.querySelector('#setDnsProvider')) return 'security';
@@ -86,7 +87,7 @@
     const heading = section.querySelector('h3');
     if (heading && !section.querySelector('.settings-sec-header svg')) {
       const icon = document.createElement('span'); icon.className = 'settings-category-icon'; icon.setAttribute('aria-hidden', 'true');
-      icon.textContent = ({ appearance: '◐', profiles: '▤', security: '◇', system: '⌘', advanced: '⚙', network: '⇄' })[section.dataset.category];
+      icon.textContent = ({ balancer: '⇄', appearance: '◐', profiles: '▤', security: '◇', system: '⌘', advanced: '⚙', network: '⇄' })[section.dataset.category];
       heading.before(icon);
     }
   });
@@ -134,7 +135,7 @@
     ['Регион маршрутизации', '<p>Регион определяет исключения для сайтов и DNS.</p><select id="setupRegion" class="tactical-select"><option value="ru">Россия</option><option value="cn">Китай</option><option value="ir">Иран</option><option value="global">Международный</option></select>'],
     ['Маршрут трафика', '<p>Умный маршрут открывает региональные сайты напрямую. Полный маршрут направляет обрабатываемый трафик через VPN.</p><select id="setupRoute" class="tactical-select"><option value="smart_ru">Умный маршрут</option><option value="global">Всё через VPN</option></select>'],
     ['Добавьте сервер', '<p>Для подключения понадобится сервер или подписка. Их можно добавить сейчас или после настройки.</p><button type="button" id="setupAddServer" class="btn-secondary">Добавить сервер или подписку</button>'],
-    ['Как подключать приложения', '<p>Системный прокси подходит браузерам и приложениям с поддержкой прокси. TUN также перехватывает соединения игр и других программ; нужны права администратора.</p><select id="setupApps" class="tactical-select"><option value="proxy">Приложения с поддержкой прокси</option><option value="tun">Все приложения · TUN</option></select><p class="settings-help">Выбор отдельных программ в текущем ядре Windows пока не поддерживается.</p>']
+    ['Как подключать приложения', '<p>Системный прокси подходит браузерам и приложениям с поддержкой прокси. TUN также перехватывает соединения игр и других программ; нужны права администратора.</p><select id="setupApps" class="tactical-select"><option value="proxy">Приложения с поддержкой прокси</option><option value="tun">Все приложения · TUN</option></select>']
   ];
   function remember() {
     if ($('setupRegion')) draft.region = $('setupRegion').value;

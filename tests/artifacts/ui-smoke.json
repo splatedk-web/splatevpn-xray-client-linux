@@ -3,7 +3,6 @@
   "title": "SplateVPN Desktop",
   "received": [
     "appUpdate",
-    "log",
     "state",
     "servers",
     "subscriptions",
@@ -12,11 +11,15 @@
     "connectionProfiles",
     "lanInterfaces",
     "lanEndpoints",
-    "settings"
+    "settings",
+    "log"
   ],
   "themes": 12,
   "hasApp": true,
   "hasConnectButton": true,
+  "hasBalancerSettings": true,
+  "balancerModes": 3,
+  "windowsProxyImport": false,
   "horizontalOverflow": false,
   "width": 1180,
   "height": 800,

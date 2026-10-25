@@ -28,6 +28,9 @@
         received: [...received], themes: Object.keys(window.SplatePalettes || {}).length + 1,
         hasApp: !!document.querySelector('.app-shell'),
         hasConnectButton: !!document.getElementById('btnToggleConnection'),
+        hasBalancerSettings: !!document.getElementById('balancerSettings'),
+        balancerModes: document.querySelectorAll('[name="balancerModeChoice"]').length,
+        windowsProxyImport: !!document.getElementById('importUpstreamProxy'),
         horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
         width: innerWidth, height: innerHeight
       }})), 2000);

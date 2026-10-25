@@ -8,13 +8,14 @@ import time
 
 os.environ["GDK_BACKEND"]="x11"
 ROOT = Path(__file__).resolve().parents[1]
+BUILD = ROOT / os.environ.get("SPLATE_UI_BUILD", "dist/linux-x64")
 ARTIFACTS = ROOT / "tests/artifacts"
 ARTIFACTS.mkdir(exist_ok=True)
 with tempfile.TemporaryDirectory(prefix="splate-ui-") as temp:
     env = dict(os.environ, XDG_CONFIG_HOME=temp, XDG_DATA_HOME=temp+"/data", XDG_RUNTIME_DIR=temp, WEBKIT_DISABLE_DMABUF_RENDERER="1", LIBGL_ALWAYS_SOFTWARE="1")
     report = Path(temp) / "report.json"
     with (ARTIFACTS / "ui-smoke.log").open("w") as log:
-        p = subprocess.Popen([str(ROOT / "dist/linux-x64/SplateClient"), "--smoke-report", str(report)], env=env, stdout=log, stderr=log)
+        p = subprocess.Popen([str(BUILD / "SplateClient"), "--smoke-report", str(report)], env=env, stdout=log, stderr=log)
         try:
             for _ in range(100):
                 if report.exists():
@@ -38,11 +39,12 @@ with tempfile.TemporaryDirectory(prefix="splate-ui-") as temp:
             (ARTIFACTS / "ui-smoke.json").write_text(json.dumps(data, indent=2))
             assert data["readyState"] == "complete" and data["hasApp"]
             assert data["themes"] == 12 and not data["horizontalOverflow"]
+            assert data["hasBalancerSettings"] and data["balancerModes"] == 3 and not data["windowsProxyImport"]
             startup = Path(temp) / "autostart/splatevpn.desktop"
             assert startup.exists() and "--minimized" in startup.read_text()
             data["autostartCreated"] = True
             # Repeated launches reach the running window rather than creating one.
-            result = subprocess.run([str(ROOT / "dist/linux-x64/SplateClient")], env=env, capture_output=True, timeout=10)
+            result = subprocess.run([str(BUILD / "SplateClient")], env=env, capture_output=True, timeout=10)
             assert result.returncode == 0
             data["singleInstance"] = True
             (ARTIFACTS / "ui-smoke.json").write_text(json.dumps(data, indent=2))

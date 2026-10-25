@@ -71,7 +71,7 @@ public partial class MainViewModel : ObservableObject
             lines.Add($"Прокси Linux: ручной {(proxy.Manual ? "включён" : "выключен")}; PAC {(proxy.Pac ? "включён" : "выключен")}");
             if (ActiveTunMode && proxy.HasConflict) lines.Add("КОНФЛИКТ: при активном TUN включён системный прокси/PAC. Проверьте параметры Linux или переподключитесь, чтобы отключить его с подтверждением.");
         }
-        catch (Exception) { lines.Add("Не удалось проверить настройки системного прокси Windows."); }
+        catch (Exception) { lines.Add("Не удалось проверить настройки системного прокси."); }
         lines.Add("Проверка портов подтверждает работу локального ядра. Для проверки выхода и доступа используйте «Проверить нейросети». Ссылки, ключи и адрес сервера в этот отчёт не включены.");
         return string.Join("\n", lines);
     }
@@ -1117,7 +1117,7 @@ public partial class MainViewModel : ObservableObject
             {
                 UpstreamProxy.ValidateTransport(node);
                 if ((upstream.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) || (System.Net.IPAddress.TryParse(upstream.Host, out var proxyAddress) && System.Net.IPAddress.IsLoopback(proxyAddress))) && (upstream.Port == settings.HttpPort || upstream.Port == settings.SocksPort))
-                    throw new IOException("Внешний прокси указывает на локальный порт самого SplateVPN. Импортируйте исходный прокси Windows или укажите адрес прокси сети.");
+                    throw new IOException("Внешний прокси указывает на локальный порт самого SplateVPN. Укажите адрес внешнего прокси своей сети.");
                 ConnectionDetail = "Проверка CONNECT через внешний HTTP-прокси...";
                 await UpstreamProxy.CheckConnectAsync(upstream, node.Address, node.Port, ct);
             }

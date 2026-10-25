@@ -1,5 +1,19 @@
 /* Shared controls use the active palette in every theme. */
 [hidden] { display: none !important; }
+.balancer-card { grid-column: 1 / -1; min-width: 0; }
+.balancer-modes { border: 0; padding: 0; margin: 16px 0; display: grid; gap: 10px; min-width: 0; }
+.balancer-modes legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.balancer-mode { display: flex; align-items: flex-start; gap: 14px; padding: 12px; border: 1px solid transparent; border-radius: 14px; cursor: pointer; }
+.balancer-mode:has(input:checked) { border-color: var(--accent-cyan); background: var(--accent-cyan-dim); }
+.balancer-mode input { width: 20px; height: 20px; flex-shrink: 0; margin: 3px 0 0; accent-color: var(--accent-cyan); }
+.balancer-mode > span { display: grid; gap: 6px; min-width: 0; }
+.balancer-mode strong { color: var(--text-primary); font-size: 14px; }
+.balancer-mode span span { color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
+.balancer-options .setting-item { gap: 18px; }
+.balancer-options select { min-width: 115px; min-height: 42px; flex-shrink: 0; }
+.balancer-disabled-hint { color: var(--accent-amber); }
+.balancer-reset { display: block; width: 100%; margin-top: 18px; padding: 12px; text-align: center; }
+.balancer-shortcut { display: block; margin: 4px 0 10px auto; padding: 8px; }
 .settings-browser { display: grid; gap: 14px; margin-bottom: 20px; min-width: 0; }
 .settings-search { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid var(--border-subtle); background: var(--surface-card); border-radius: 16px; }
 .settings-search svg { width: 20px; height: 20px; color: var(--accent-cyan); flex-shrink: 0; }

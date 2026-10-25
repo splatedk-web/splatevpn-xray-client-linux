@@ -46,12 +46,7 @@
   addEventListener('splateTheme',()=>{document.querySelectorAll('.theme-choice').forEach(t=>t.setAttribute('aria-checked',String(t.dataset.themeKey===$('setTheme').value)));});
   addEventListener('themeArtworkLoaded',renderThemes);renderThemes();
   schema.glassTransparency=['setGlass','value'];schema.groupServers=['groupServers','checked'];
-  document.querySelector('.home-right-col').insertAdjacentHTML('beforeend',`<div class="card settings-section balancer-card"><div class="settings-sec-header"><h3>Балансировщик</h3></div><p class="settings-help">Проверка связи не отключает VPN. Резерв выбирается после подтверждённого сбоя; оптимизация ждёт завершения теста скорости.</p><div class="setting-item"><label for="setBalancerMode">Режим</label><select id="setBalancerMode" class="tactical-select desktop-setting"><option value="balanced">Автоматический</option><option value="failover">Только при сбое</option><option value="initial_only">Только при подключении</option></select></div><div class="balancer-fields"></div></div>`);
-  const balanceFields={balancerHealthSeconds:['setBalancerHealth','Проверять каждые, сек',2,30,2],balancerFailureConfirmations:['setBalancerFailures','Подтверждений сбоя',2,5,2],balancerOptimizationMinutes:['setBalancerOptimization','Поиск лучшего, мин',5,60,5],balancerCooldownSeconds:['setBalancerCooldown','Пауза между оптимизациями, сек',60,1800,60],balancerImprovementPercent:['setBalancerImprovement','Минимальный выигрыш, %',30,80,30]};
-  schema.balancerMode=['setBalancerMode','value'];
-  Object.entries(balanceFields).forEach(([key,[id,label,min,max,value]])=>{document.querySelector('.balancer-fields').insertAdjacentHTML('beforeend',`<label for="${id}">${label}<input id="${id}" class="port-input desktop-setting" type="number" min="${min}" max="${max}" value="${value}"></label>`);schema[key]=[id,'value'];});
-  // Keep connection settings in one place; the home card contains the enable switch.
-  $('setAutoFallback').closest('.settings-section').after(document.querySelector('.balancer-card'));
+  window.SplateBalancer.mount(schema);
   $('setKillSwitch').closest('.setting-item').hidden=true;$('setDnsLeakProtection').closest('.setting-item').hidden=true;
   const toolbar=$('serverSort').closest('.server-list-meta');
   toolbar.insertAdjacentHTML('beforeend',`<label for="setPingMode">Метод проверки</label><select id="setPingMode" class="tactical-select desktop-setting"><option value="tcp">TCP</option><option value="http">Real ping · HTTPS</option></select><button id="btnServersAutoSelect" class="btn-secondary">Автовыбор</button>`);

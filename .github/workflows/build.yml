@@ -30,6 +30,14 @@ jobs:
         run: GSETTINGS_BACKEND=keyfile dist/checks/PortChecks --proxy-only
       - name: Verify real TUN and incoming connections
         run: sudo python3 tests/network_namespace_check.py
+      - name: Check Linux settings and Android balancer UI
+        env:
+          NODE_PATH: /tmp/splate-ui-deps/node_modules
+          PLAYWRIGHT_CHANNEL: chromium
+        run: |
+          npm install --prefix /tmp/splate-ui-deps playwright@1.62.1
+          /tmp/splate-ui-deps/node_modules/.bin/playwright install --with-deps chromium
+          node tests/balancer-linux-ui.cjs
       - name: Publish and package
         run: |
           dotnet publish -c Release -r linux-x64 --self-contained true -o dist/linux-x64

@@ -17,7 +17,7 @@ Debian 13+ с графическим рабочим столом. На данн�
 Скачанный пакет устанавливается так:
 
 ```sh
-sudo apt install ./splatevpn_2.14.1-1_amd64.deb
+sudo apt install ./splatevpn_2.14.2-1_amd64.deb
 ```
 
 Запуск из меню приложений или `/opt/splatevpn/SplateClient`.
@@ -103,3 +103,9 @@ dbus-run-session -- env XDG_CONFIG_HOME=/tmp/splate-proxy-test XDG_DATA_HOME=/tm
 Проверенные версии ядер и SHA-256: `docs/linux-core-manifest.json`.
 Снимок настоящего Linux-окна и отчёт IPC: `tests/artifacts/linux-ui.png`,
 `tests/artifacts/ui-smoke.json`. Подробности и границы проверок — `docs/VALIDATION.md`.
+
+Настройки балансировщика: «Настройки → Балансировщик» или кнопка
+«Настроить балансировщик» на главной. Режимы, наборы интервалов и сброс
+соответствуют Android. Проверка UI: установите Playwright в tests/node_modules
+и выполните `node tests/balancer-linux-ui.cjs` (в Linux задайте
+`PLAYWRIGHT_CHANNEL=chromium`).

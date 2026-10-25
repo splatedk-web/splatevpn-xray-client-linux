@@ -1,11 +1,12 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")/.."
+build="${SPLATE_BUILD_DIR:-dist/linux-x64}"
 stage="$(mktemp -d /tmp/splate-deb.XXXXXX)"
 trap 'rm -rf -- "$stage"' EXIT
-test -x dist/linux-x64/SplateClient
+test -x "$build/SplateClient"
 mkdir -p "$stage/DEBIAN" "$stage/opt/splatevpn" "$stage/usr/libexec" "$stage/usr/share/applications" "$stage/usr/share/icons/hicolor/256x256/apps" "$stage/usr/share/polkit-1/actions"
-cp -a dist/linux-x64/. "$stage/opt/splatevpn/"
+cp -a "$build/." "$stage/opt/splatevpn/"
 install -m755 scripts/splatevpn-network "$stage/usr/libexec/splatevpn-network"
 install -m644 scripts/io.splatevpn.network.policy "$stage/usr/share/polkit-1/actions/"
 install -m644 scripts/splatevpn.desktop "$stage/usr/share/applications/"
@@ -13,7 +14,7 @@ install -m644 Assets/app.png "$stage/usr/share/icons/hicolor/256x256/apps/splate
 chmod 755 "$stage/opt/splatevpn/SplateClient" "$stage/opt/splatevpn/core/xray" "$stage/opt/splatevpn/core/xray.bin" "$stage/opt/splatevpn/core/tun2socks"
 cat > "$stage/DEBIAN/control" <<'EOF'
 Package: splatevpn
-Version: 2.14.1-1
+Version: 2.14.2-1
 Section: net
 Priority: optional
 Architecture: amd64
@@ -37,4 +38,4 @@ chmod 755 "$stage/DEBIAN/postinst"
 find "$stage" -type d -exec chmod 755 {} +
 find "$stage" -type f -exec chmod 644 {} +
 chmod 755 "$stage/DEBIAN/postinst" "$stage/usr/libexec/splatevpn-network" "$stage/opt/splatevpn/SplateClient" "$stage/opt/splatevpn/core/xray" "$stage/opt/splatevpn/core/xray.bin" "$stage/opt/splatevpn/core/tun2socks"
-dpkg-deb --root-owner-group --build "$stage" dist/splatevpn_2.14.1-1_amd64.deb
+dpkg-deb --root-owner-group --build "$stage" dist/splatevpn_2.14.2-1_amd64.deb
