@@ -19,8 +19,9 @@ Section: net
 Priority: optional
 Architecture: amd64
 Maintainer: SplateVPN
-Depends: libc6 (>= 2.38), libstdc++6 (>= 13), gsettings-desktop-schemas, libwebkit2gtk-4.1-0, libgtk-3-0 | libgtk-3-0t64, libnotify4, libayatana-appindicator3-1, iproute2, python3, policykit-1 | polkitd, pkexec, libcap2-bin, zenity, xclip, wl-clipboard, zbar-tools, wireless-tools
+Depends: libc6 (>= 2.38), libstdc++6 (>= 13), gsettings-desktop-schemas, libwebkit2gtk-4.1-0, libgtk-3-0 | libgtk-3-0t64, libnotify4, libayatana-appindicator3-1, iproute2, python3, policykit-1 | polkitd, pkexec, libcap2-bin, zenity, xclip, wl-clipboard, zbar-tools
 Recommends: gnome-screenshot
+Suggests: wireless-tools
 Description: SplateVPN Linux desktop client
  Native WebKitGTK interface, Xray, automatic server balancing,
  XDG autostart and a polkit TUN helper preserving inbound replies.
