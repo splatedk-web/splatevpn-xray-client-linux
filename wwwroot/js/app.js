@@ -1051,7 +1051,7 @@
     state.rtt = data.rtt !== undefined ? data.rtt : -1;
 
     const routeWarning = state.isConnected && /ОШИБКА|НЕ ПОДТВЕРЖДЕНА/.test(state.statusText);
-    const visualConnected = state.isConnected && !routeWarning;
+    const visualConnected = state.isConnected && !state.isConnecting && !routeWarning;
     // Header updates
     if (els.headerStatusLabel) els.headerStatusLabel.textContent = state.statusText;
     if (els.headerStatusDot) {
@@ -1078,6 +1078,21 @@
       els.coreStatusText.className = 'core-status-headline ' + (visualConnected ? 'color-emerald' : (state.isConnecting || routeWarning ? 'color-cyan' : ''));
     }
     if (els.coreStatusDetail) els.coreStatusDetail.textContent = state.statusDetail;
+    const progress=document.getElementById('connectionProgress');
+    const steps=data.connectionSteps||[];progress.hidden=steps.length===0;
+    if(state.isConnecting)progress.open=true;
+    document.getElementById('connectionSteps').replaceChildren(...steps.map((step,i)=>{
+      const row=document.createElement('li');row.className=i===steps.length-1&&state.isConnecting?'current':'';
+      const time=document.createElement('time');time.textContent=(step.elapsedMs/1000).toFixed(1)+' с';
+      const label=document.createElement('span');label.textContent=step.label;row.append(time,label);return row;
+    }));
+    document.getElementById('connectionElapsed').textContent=steps.length?'· '+((data.connectionElapsedMs||0)/1000).toFixed(1)+' с':'';
+    clearInterval(handleStateUpdate.progressTimer);
+    if(state.isConnecting&&steps.length){
+      const started=performance.now(),base=data.connectionElapsedMs||0;
+      handleStateUpdate.progressTimer=setInterval(()=>{document.getElementById('connectionElapsed').textContent='· '+((base+performance.now()-started)/1000).toFixed(1)+' с';},250);
+      const list=document.getElementById('connectionSteps');list.scrollTop=list.scrollHeight;
+    }
     document.getElementById('tunModeStatus').textContent = state.isConnecting ? 'Применение режима…' :
       state.isConnected ? (state.activeTunMode ? 'TUN работает · все приложения' :
         (state.settings.enableTunMode ? 'TUN не применён · сейчас работает системный прокси' : 'TUN выключен · сейчас работает системный прокси')) :
@@ -1085,12 +1100,12 @@
 
     // Connect Button
     if (els.btnToggleConnection) {
-      if (state.isConnected) {
-        els.btnToggleConnection.className = 'btn-primary-action btn-disconnect';
-        if (els.btnToggleConnectionText) els.btnToggleConnectionText.textContent = 'Отключиться';
-      } else if (state.isConnecting) {
+      if (state.isConnecting) {
         els.btnToggleConnection.className = 'btn-primary-action btn-connecting';
         if (els.btnToggleConnectionText) els.btnToggleConnectionText.textContent = 'Отменить подключение';
+      } else if (state.isConnected) {
+        els.btnToggleConnection.className = 'btn-primary-action btn-disconnect';
+        if (els.btnToggleConnectionText) els.btnToggleConnectionText.textContent = 'Отключиться';
       } else {
         els.btnToggleConnection.className = 'btn-primary-action btn-connect';
         if (els.btnToggleConnectionText) els.btnToggleConnectionText.textContent = 'Подключиться';

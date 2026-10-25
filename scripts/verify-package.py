@@ -5,7 +5,7 @@ import subprocess
 import tarfile
 
 root = Path(__file__).resolve().parents[1]
-package = root / "dist/splatevpn_2.14.2-1_amd64.deb"
+package = root / "dist/splatevpn_2.14.3-1_amd64.deb"
 expected = {"opt/splatevpn/core/" + entry["file"]: entry["sha256"] for entry in json.loads((root / "docs/linux-core-manifest.json").read_text())}
 required = {
     "opt/splatevpn/SplateClient", "opt/splatevpn/Photino.Native.so",

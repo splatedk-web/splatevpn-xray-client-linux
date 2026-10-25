@@ -42,6 +42,8 @@ internal static class TunSessionChecks
         {
             await vm.ToggleConnectionCommand.ExecuteAsync(null);
             Check(vm.IsConnected&&vm.ActiveTunMode&&!vm.HasPendingConnectionSettings,"real TUN startup publishes active state: "+vm.ConnectionDetail);
+            Check(vm.ConnectionSteps.Any(s=>s.label.Contains("конфигурации Xray"))&&vm.ConnectionSteps.Any(s=>s.label.Contains("polkit"))&&vm.ConnectionSteps.Last().label.Contains("готовы"),"real startup reports validation, TUN authorization and readiness in order");
+            Check(vm.ConnectionSteps.Zip(vm.ConnectionSteps.Skip(1)).All(p=>p.First.elapsedMs<=p.Second.elapsedMs),"connection stage timing is monotonic");
             var tunIndex=await LinuxCommand.RunAsync("cat",["/sys/class/net/SplateTUN/ifindex"]);
             await Transfer();
             await Task.Delay(1200);
@@ -75,6 +77,14 @@ internal static class TunSessionChecks
             Check(vm.StatusText=="СВЯЗЬ НЕ ПОДТВЕРЖДЕНА"&&vm.IsConnected,"failed connectivity is warning while tunnel stays enabled");
             vm.UpdateConnectivityStatus(true);
             Check(vm.StatusText=="ПОДКЛЮЧЕНО"&&vm.ConnectionDetail.Contains("TUN активен"),"successful recheck clears stale failure text");
+
+            vm.Settings.ShareLan=true;vm.Settings.LanBindAddress="10.203.0.2";vm.Settings.LanAuthEnabled=true;vm.Settings.LanUsername="fixture";vm.Settings.LanPassword="fixture-password";
+            await vm.SwitchServerAsync(b);
+            Check(vm.IsConnected&&!vm.HasPendingConnectionSettings,"selected LAN address and credentials apply with TUN");
+            var lanProbe="import http.client,base64\nfor authenticated in (False,True):\n c=http.client.HTTPConnection('10.203.0.2',39109,timeout=5)\n headers={'Proxy-Authorization':'Basic '+base64.b64encode(b'fixture:fixture-password').decode()} if authenticated else {}\n c.request('GET','"+Target+"',headers=headers)\n r=c.getresponse();assert r.status==(204 if authenticated else 407),(authenticated,r.status);r.read();c.close()";
+            await LinuxCommand.RunAsync("ip",["netns","exec","splate-remote-qa","python3","-c",lanProbe]);
+            Console.WriteLine("PASS LAN sharing: selected physical address, remote authenticated HTTP 204, unauthenticated 407, local TUN remains usable");
+            await Transfer();
 
             core.Stop();
             // Notify the model through the same platform-exit path used by a failed helper.

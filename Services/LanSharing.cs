@@ -7,6 +7,7 @@ namespace SplateClientDesktop.Services;
 
 public static class LanSharing
 {
+    public sealed record Interface(string address, string name);
     public static void Validate(AppSettings settings)
     {
         if (settings.LanBindAddress != "" && (!IPAddress.TryParse(settings.LanBindAddress, out var address) ||
@@ -16,9 +17,9 @@ public static class LanSharing
             settings.LanUsername.Any(char.IsControl) || settings.LanPassword.Any(char.IsControl)))
             throw new ArgumentException("Для авторизации выберите интерфейс, задайте логин и пароль от 8 символов.");
     }
-    public static object[] Interfaces() => NetworkInterface.GetAllNetworkInterfaces()
-        .Where(n => n.OperationalStatus == OperationalStatus.Up && n.NetworkInterfaceType != NetworkInterfaceType.Loopback &&
-            !n.Name.Contains("Splate", StringComparison.OrdinalIgnoreCase) && !n.Name.Contains("tun", StringComparison.OrdinalIgnoreCase))
+    public static Interface[] Interfaces() => NetworkInterface.GetAllNetworkInterfaces()
+        .Where(n => n.OperationalStatus is OperationalStatus.Up or OperationalStatus.Unknown && n.NetworkInterfaceType != NetworkInterfaceType.Loopback &&
+            !n.Name.Equals(TunDeviceManager.DeviceName, StringComparison.OrdinalIgnoreCase) && n.NetworkInterfaceType != NetworkInterfaceType.Tunnel && !n.Name.StartsWith("tun", StringComparison.OrdinalIgnoreCase))
         .SelectMany(n => n.GetIPProperties().UnicastAddresses.Where(a => a.Address.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(a.Address))
-            .Select(a => (object)new { address = a.Address.ToString(), name = n.Name })).ToArray();
+            .Select(a => new Interface(a.Address.ToString(), n.Name))).Distinct().OrderBy(n=>n.name).ThenBy(n=>n.address).ToArray();
 }

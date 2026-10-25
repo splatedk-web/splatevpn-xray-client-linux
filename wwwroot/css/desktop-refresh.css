@@ -1,5 +1,12 @@
 /* Shared controls use the active palette in every theme. */
 [hidden] { display: none !important; }
+.connection-progress { width:100%; text-align:left; margin:12px 0; border:1px solid var(--border-subtle); border-radius:12px; padding:10px 12px; }
+.connection-progress summary { cursor:pointer; font-size:12px; color:var(--text-secondary); }
+.connection-progress ol { list-style:none; margin:12px 0 0; padding:0; max-height:190px; overflow:auto; font-size:11px; }
+.connection-progress li { display:flex; gap:10px; padding:5px 0; color:var(--text-secondary); overflow-wrap:anywhere; }
+.connection-progress time { flex:0 0 44px; font-variant-numeric:tabular-nums; color:var(--text-muted); }
+.connection-progress li.current { color:var(--accent-cyan); }
+#lanInterfaceChoices button[aria-pressed="true"] { border-color:var(--accent-cyan); color:var(--accent-cyan); }
 .balancer-card { grid-column: 1 / -1; min-width: 0; }
 .balancer-modes { border: 0; padding: 0; margin: 16px 0; display: grid; gap: 10px; min-width: 0; }
 .balancer-modes legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }

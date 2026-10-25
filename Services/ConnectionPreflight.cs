@@ -13,14 +13,19 @@ public static class ConnectionPreflight
             throw new IOException("Проверка перед подключением: укажите разные HTTP/SOCKS-порты от 1 до 65535.");
         foreach (var file in settings.EnableTunMode ? new[] { "xray", "tun2socks" } : new[] { "xray" })
             if (!File.Exists(Path.Combine(root, "core", file))) throw new IOException($"Проверка перед подключением: отсутствует core/{file}. Переустановите приложение или распакуйте portable полностью.");
+        var addresses=settings.ShareLan && settings.LanBindAddress!="" ? new[]{IPAddress.Loopback,IPAddress.Parse(settings.LanBindAddress)} : new[]{settings.ShareLan?IPAddress.Any:IPAddress.Loopback};
+        if(settings.ShareLan && settings.LanBindAddress!="" && !LanSharing.Interfaces().Any(n=>n.address==settings.LanBindAddress))
+            throw new IOException("Выбранный адрес раздачи сейчас недоступен. Обновите список интерфейсов и выберите адрес подключённой сети.");
         foreach (var (name, port) in new[] { ("HTTP", settings.HttpPort), ("SOCKS", settings.SocksPort) })
         {
             if (ownedPorts.Contains(port)) continue;
             try
             {
-                var address = settings.ShareLan ? IPAddress.Any : IPAddress.Loopback;
-                using var listener = new TcpListener(address, port); listener.ExclusiveAddressUse = true; listener.Start();
-                if (name == "SOCKS") { using var udp = new UdpClient(AddressFamily.InterNetwork); udp.ExclusiveAddressUse = true; udp.Client.Bind(new IPEndPoint(address, port)); }
+                foreach(var address in addresses)
+                {
+                    using var listener = new TcpListener(address, port); listener.ExclusiveAddressUse = true; listener.Start();
+                    if (name == "SOCKS") { using var udp = new UdpClient(AddressFamily.InterNetwork); udp.ExclusiveAddressUse = true; udp.Client.Bind(new IPEndPoint(address, port)); }
+                }
             }
             catch (SocketException error) { throw new IOException($"Проверка перед подключением: порт {name} {port} занят или недоступен. Закройте другой прокси/VPN либо измените порты SplateVPN в настройках.", error); }
         }

@@ -31,6 +31,7 @@
         hasBalancerSettings: !!document.getElementById('balancerSettings'),
         balancerModes: document.querySelectorAll('[name="balancerModeChoice"]').length,
         windowsProxyImport: !!document.getElementById('importUpstreamProxy'),
+        lanInterfaceOptions: document.querySelectorAll('#setLanBindAddress option').length,
         horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
         width: innerWidth, height: innerHeight
       }})), 2000);

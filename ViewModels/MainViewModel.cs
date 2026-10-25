@@ -33,6 +33,20 @@ public partial class MainViewModel : ObservableObject
     public bool IsSpeedTestRunning { get => _speedTestRunning; set { _speedTestRunning = value; if (value) _optimizationCts?.Cancel(); } }
     public event Action? ConnectionChanging;
     private readonly BalancerPolicy _balancerPolicy;
+    public sealed record ConnectionStep(string label, long elapsedMs);
+    private readonly System.Diagnostics.Stopwatch _connectionClock = new();
+    private readonly List<ConnectionStep> _connectionSteps = new();
+    public ConnectionStep[] ConnectionSteps => _connectionSteps.ToArray();
+    public long ConnectionElapsedMs => IsConnecting ? _connectionClock.ElapsedMilliseconds : _connectionSteps.LastOrDefault()?.elapsedMs ?? 0;
+    private void BeginConnectionProgress() { _connectionSteps.Clear(); _connectionClock.Restart(); OnPropertyChanged(nameof(ConnectionSteps)); }
+    private void RecordConnectionStep(string label)
+    {
+        if (_connectionSteps.LastOrDefault()?.label == label) return;
+        _connectionSteps.Add(new(label,_connectionClock.ElapsedMilliseconds));
+        if(_connectionSteps.Count>60)_connectionSteps.RemoveAt(0);
+        OnPropertyChanged(nameof(ConnectionSteps));
+    }
+    partial void OnConnectionDetailChanged(string value) { if(IsConnecting)RecordConnectionStep(value); }
     private long _currentDownloadBps;
     private AppSettings? _activeSettings;
     public bool HasPendingConnectionSettings => _activeSettings != null &&
@@ -293,8 +307,10 @@ public partial class MainViewModel : ObservableObject
             var candidates = Servers.Where(s => IsServerEnabled(s) && !_quality.IsQuarantined(s.Id))
                 .OrderBy(s => _quality.Score(s.Id, s.Ping, s == SelectedServer)).ToList();
             AppendLog("[AUTO-SELECT] Проверка VPN через каждый узел отдельно; TCP-пинг не подтверждает работоспособность.");
-            foreach (var batch in candidates.Chunk(10))
+            var checkedNodes=0;
+            foreach (var batch in candidates.Chunk(6))
             {
+                if(IsConnecting)ConnectionDetail=$"Автовыбор: проверяем узлы {checkedNodes+1}–{Math.Min(checkedNodes+batch.Length,candidates.Count)} из {candidates.Count}…";
                 var measured = new System.Collections.Concurrent.ConcurrentDictionary<ServerNode,long>();
                 await _probes.CandidatesAsync(batch,(node,ping)=>{
                     measured[node]=ping;_quality.Record(node.Id,ping);
@@ -302,8 +318,10 @@ public partial class MainViewModel : ObservableObject
                 },token);
                 token.ThrowIfCancellationRequested();
                 if(requestAtStart!=_selectionRequest || SelectedServer!=selectionAtStart) return false;
+                if(IsConnecting)ConnectionDetail="Повторная проверка лучшего кандидата…";
                 var best=await ConfirmBestCandidateAsync(measured,token);
                 if(requestAtStart!=_selectionRequest || SelectedServer!=selectionAtStart) return false;
+                checkedNodes+=batch.Length;
                 if(best.Node==null) continue;
                 await SelectServerAsync(best.Node);
                 AppendLog($"[AUTO-SELECT] Выбран «{best.Node.DisplayName}» ({best.Ping} ms), проверка подтверждена.");
@@ -964,11 +982,12 @@ public partial class MainViewModel : ObservableObject
         }
 
         var toggleRequest = ++_toggleRequest;
+        BeginConnectionProgress();
         var initialEpoch = _connectionEpoch;
         _connectionRequested = true;
         if (AutoFallbackFastestServer)
         {
-            _initialSelection = true; IsConnecting = true;
+            _initialSelection = true; IsConnecting = true; StatusText="ВЫБОР СЕРВЕРА…";
             try {
                 if (!await AutoSelectVerifiedAsync())
                 {
@@ -1007,6 +1026,7 @@ public partial class MainViewModel : ObservableObject
     {
         if (IsConnected) return;
 
+        BeginConnectionProgress();
         var toggleRequest = ++_toggleRequest; _connectionRequested = true;
         if (!await _connectionLock.WaitAsync(1000)) return;
         try
@@ -1026,10 +1046,12 @@ public partial class MainViewModel : ObservableObject
     {
         string? adMatcher = null;
         if (settings.EnableAdBlock) {
+            ConnectionDetail="Подготовка фильтров и геобаз…";
             try { adMatcher = await AdFilterService.PrepareAsync(AppContext.BaseDirectory, settings.AdBlockAllowlist, ct); }
             catch (Exception error) when (error is System.IO.IOException or System.IO.InvalidDataException or UnauthorizedAccessException) { AppendLog("[CLIENT] Расширенный рекламный фильтр недоступен. Используются встроенные правила: " + error.Message); }
         }
         string configJson;
+        ConnectionDetail="Создание маршрутов, DNS и конфигурации VPN…";
         configJson = _configGen.GenerateConfig(
             node: node,
             mode: settings.RoutingMode,
@@ -1078,6 +1100,7 @@ public partial class MainViewModel : ObservableObject
         if ((uplink != null || XrayConfigGenerator.ServerAddressAlias(node) != null) && !System.Net.IPAddress.TryParse(node.Address, out _))
         {
             // A failing active TUN must not prevent resolving the replacement server.
+            ConnectionDetail="Разрешение адреса VPN-сервера через физическую сеть…";
             var addresses = await _probes.ResolveServerAsync(node.Address, ct);
             var v4 = addresses.Where(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork).Select(a => a.ToString()).ToArray();
             if (v4.Length == 0) throw new InvalidOperationException("Адрес VPN-сервера не имеет IPv4 записи.");
@@ -1095,6 +1118,7 @@ public partial class MainViewModel : ObservableObject
     private async Task ConnectInternalAsync(System.Threading.CancellationToken ct = default, bool replacing = false)
     {
         var previous = replacing ? _activeConnection : null;
+        if(replacing || _connectionSteps.Count==0)BeginConnectionProgress();
         var epoch = ++_connectionEpoch;
         var selectionAtStart = _selectionRequest;
         var node = SelectedServer;
@@ -1152,6 +1176,7 @@ public partial class MainViewModel : ObservableObject
             // Readiness is local SOCKS availability. External HTTP diagnostics never gate connection startup.
             if (settings.EnableTunMode)
             {
+                ConnectionDetail="Настройка TUN · ожидание разрешения polkit, если требуется…";
                 _platform.SuspendProxyForTun(tunProxyApproval!);
                 if (!_platform.IsTunRunning || previous?.Settings.SocksPort != settings.SocksPort || previous?.Settings.BlockIpv6 != settings.BlockIpv6)
                     if (!await _platform.StartTunAsync(settings.SocksPort, uplink!, settings.BlockIpv6, AppendLog, ct)) throw new IOException("Не удалось создать TUN.");
@@ -1159,6 +1184,7 @@ public partial class MainViewModel : ObservableObject
             }
             else
             {
+                ConnectionDetail="Настройка системного HTTP/SOCKS-прокси…";
                 _platform.EnableProxy(settings.HttpPort, settings.SocksPort);
                 if (_platform.IsTunRunning) _platform.StopTun(AppendLog);
             }
@@ -1169,6 +1195,7 @@ public partial class MainViewModel : ObservableObject
             if (previous == null) { _trafficMonitor.Start(metricsPort); StartSessionTimer(); }
             else _trafficMonitor.Resume(metricsPort);
             IsConnected = true;
+            RecordConnectionStep(settings.EnableTunMode ? "TUN и маршруты готовы" : "Системный прокси готов");
             IsConnecting = false;
             foreach (var server in Servers) server.IsCurrentlyActive = server == node;
             StatusText = "ПОДКЛЮЧЕНО";
@@ -1185,6 +1212,7 @@ public partial class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
+            RecordConnectionStep(ex is OperationCanceledException ? "Подключение отменено" : "Ошибка: "+ex.Message);
             AppendLog($"[CONNECT] {ex.Message}");
             if (previous != null && _connectionRequested && epoch == _connectionEpoch)
             {
@@ -1235,6 +1263,7 @@ public partial class MainViewModel : ObservableObject
 
     public void Disconnect()
     {
+        if(IsConnecting)RecordConnectionStep("Подключение отменено пользователем");
         _connectionRequested = false;
         ++_toggleRequest;
         ++_connectionEpoch; ++_selectionRequest;
@@ -1423,7 +1452,7 @@ public partial class MainViewModel : ObservableObject
                 .OrderBy(n => _quality.Score(n.Id, n.Ping)).ToList());
         if (!dead) candidates = candidates.Take(5).ToList();
         ServerNode? best = null; long bestScore=long.MaxValue,bestPing=-1;
-        foreach(var batch in candidates.Chunk(10))
+        foreach(var batch in candidates.Chunk(6))
         {
             var measured=new System.Collections.Concurrent.ConcurrentDictionary<ServerNode,long>();
             await _probes.CandidatesAsync(batch,(node,delay)=>{measured[node]=delay;_quality.Record(node.Id,delay);},token);
@@ -2076,6 +2105,7 @@ public partial class MainViewModel : ObservableObject
         IsDetectingIp = true;
         try
         {
+            if(IsConnected)RecordConnectionStep("Проверка доступа в интернет и внешнего IP…");
             int socksPort = IsConnected ? ActiveSocksPort : 0;
             var ipTask = IpLocationService.FetchEgressIpAsync(socksPort);
             var connTask = IpLocationService.CheckConnectivityAsync(socksPort);
@@ -2104,6 +2134,7 @@ public partial class MainViewModel : ObservableObject
                 }
                 ConnectionRtt = connSuccess ? rtt : -1;
                 UpdateConnectivityStatus(ipDetails?.IsSuccess == true || connSuccess);
+                if(IsConnected)RecordConnectionStep(connSuccess ? "Доступ в интернет подтверждён" : ipDetails?.IsSuccess == true ? "Внешний IP получен" : "Доступ в интернет не подтверждён");
             });
         }
         catch (Exception ex)
@@ -2478,6 +2509,11 @@ public partial class MainViewModel : ObservableObject
     private void OnCoreLogMessage(string message)
     {
         AppendLog(message);
+        if(message.StartsWith("[STARTUP] ",StringComparison.Ordinal))
+        {
+            var startupEpoch=_connectionEpoch;
+            Application.Current.Dispatcher.BeginInvoke(()=>{if(startupEpoch==_connectionEpoch&&IsConnecting)ConnectionDetail=message[10..];});
+        }
         if (!message.Contains("failed to find the interface", StringComparison.OrdinalIgnoreCase) &&
             !message.Contains("failed to bind to interface", StringComparison.OrdinalIgnoreCase)) return;
         var epoch = _connectionEpoch;

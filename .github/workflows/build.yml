@@ -38,6 +38,7 @@ jobs:
           npm install --prefix /tmp/splate-ui-deps playwright@1.62.1
           /tmp/splate-ui-deps/node_modules/.bin/playwright install --with-deps chromium
           node tests/balancer-linux-ui.cjs
+          node tests/connection-lan-ui.cjs
       - name: Publish and package
         run: |
           dotnet publish -c Release -r linux-x64 --self-contained true -o dist/linux-x64

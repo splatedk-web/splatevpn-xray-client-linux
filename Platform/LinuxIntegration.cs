@@ -39,13 +39,27 @@ public static class SystemProxyManager
     private static Dictionary<string,string> Read()
     {
         if(Kde) return new[] { "ProxyType","httpProxy","httpsProxy","socksProxy","NoProxyFor","Proxy Config Script" }.ToDictionary(k=>k,k=>LinuxCommand.Run("kreadconfig6",["--file","kioslaverc","--group","Proxy Settings","--key",k]));
-        return Keys.ToDictionary(k=>k,Get);
+        var values=new Dictionary<string,string>();
+        foreach(var line in LinuxCommand.Run("gsettings",["list-recursively","org.gnome.system.proxy"]).Split('\n'))
+        {
+            var parts=line.Split(' ',3,StringSplitOptions.RemoveEmptyEntries);
+            if(parts.Length!=3)continue;
+            var child=parts[0].Replace("org.gnome.system.proxy","").TrimStart('.');
+            var key=child.Length==0?parts[1]:child+"."+parts[1];
+            if(Keys.Contains(key))values[key]=parts[2];
+        }
+        if(values.Count!=Keys.Length)throw new IOException("Не удалось прочитать настройки системного прокси GNOME/Cinnamon.");
+        return values;
     }
     private static void Write(Dictionary<string,string> values)
     {
+        var current=Read();
         foreach(var (key,value) in values)
+        {
+            if(current.TryGetValue(key,out var old)&&old==value)continue;
             if(Kde) LinuxCommand.Run("kwriteconfig6",["--file","kioslaverc","--group","Proxy Settings","--key",key,value]);
             else { var (schema,name)=Location(key); LinuxCommand.Run("gsettings",["set",schema,name,value]); }
+        }
     }
     private static ProxyPreflight Status(Dictionary<string,string> v) => new(Kde ? v["ProxyType"]=="1" : v["mode"]=="'manual'",Kde ? v["ProxyType"]=="2" : v["mode"]=="'auto'",JsonSerializer.Serialize(v));
     private static bool Equal(Dictionary<string,string> a,Dictionary<string,string> b) => a.Count==b.Count && a.All(p=>b.TryGetValue(p.Key,out var v)&&v==p.Value);

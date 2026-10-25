@@ -16,18 +16,28 @@
   const lanControls = document.createElement('div'); lanControls.className = 'lan-controls';
   lanControls.innerHTML = `<div class="setting-item"><label for="setLanBindAddress">Интерфейс раздачи</label><select id="setLanBindAddress" class="tactical-select desktop-setting"><option value="">Все интерфейсы · без авторизации</option></select></div><p class="settings-help">При выборе конкретного адреса раздача не переходит на другую сеть, если адрес исчезнет.</p><div class="setting-item"><label for="setLanAuthEnabled">Защитить раздачу паролем</label><label class="toggle-switch"><input id="setLanAuthEnabled" class="desktop-setting" type="checkbox"><span class="slider"></span></label></div><div class="compact-fields"><label>Логин<input id="setLanUsername" class="tactical-input desktop-setting" value="splate" maxlength="64" autocomplete="off"></label><label>Пароль<input id="setLanPassword" class="tactical-input desktop-setting" type="password" maxlength="128" autocomplete="new-password"></label></div><div class="artifact-actions"><button type="button" id="showLanPassword" class="btn-secondary" aria-pressed="false">Показать пароль</button><button type="button" id="renewLanPassword" class="btn-secondary">Новый пароль</button><button type="button" id="copyLanAddress" class="btn-secondary">Копировать HTTP-адрес</button></div><p id="lanControlStatus" class="settings-help" role="status"></p>`;
   $('setShareLan').closest('.setting-item').after(lanControls);
+  $('setLanBindAddress').closest('.setting-item').insertAdjacentHTML('afterend','<div id="lanInterfaceChoices" class="artifact-actions" role="group" aria-label="Доступные интерфейсы"></div><div class="artifact-actions"><button type="button" id="refreshLanInterfaces" class="btn-secondary">Обновить интерфейсы</button></div><p id="lanInterfaceStatus" class="settings-help" role="status"></p>');
+  const refreshLan = () => { $('lanInterfaceStatus').textContent='Поиск интерфейсов Linux…'; send('refreshLanInterfaces'); };
+  $('refreshLanInterfaces').onclick=refreshLan;
+  $('navSettings').addEventListener('click',refreshLan);
   $('setShareLan').closest('.setting-item').querySelector('p').textContent = 'HTTP/SOCKS5 для устройств в одной локальной сети. Выберите интерфейс и при необходимости включите авторизацию. На другом устройстве задайте прокси вручную.';
   let configuredLanAddress = '', lanInterfaces = [];
   function renderLanInterfaces() {
-    const select = $('setLanBindAddress'); select.replaceChildren(new Option('Все интерфейсы · без авторизации', ''));
-    for (const nic of lanInterfaces) select.add(new Option(`${nic.name} · ${nic.address}`, nic.address));
-    if (configuredLanAddress && !lanInterfaces.some(n => n.address === configuredLanAddress)) select.add(new Option(`${configuredLanAddress} · недоступен`, configuredLanAddress));
+    const select = $('setLanBindAddress');
+    const choices=[['','Все интерфейсы · без авторизации'],...lanInterfaces.map(n=>[n.address,`${n.name} · ${n.address}`])];
+    if (configuredLanAddress && !lanInterfaces.some(n => n.address === configuredLanAddress)) choices.push([configuredLanAddress,`${configuredLanAddress} · недоступен`]);
+    if(JSON.stringify([...select.options].map(o=>[o.value,o.text]))!==JSON.stringify(choices))select.replaceChildren(...choices.map(([value,label])=>new Option(label,value)));
     select.value = configuredLanAddress;
+    $('lanInterfaceChoices').replaceChildren(...lanInterfaces.map(n=>{
+      const b=document.createElement('button');b.type='button';b.className='btn-secondary';b.textContent=`${n.name} · ${n.address}`;b.setAttribute('aria-pressed',String(n.address===configuredLanAddress));
+      b.onclick=()=>{configuredLanAddress=n.address;select.value=n.address;select.dispatchEvent(new Event('change',{bubbles:true}));};return b;
+    }));
+    $('lanInterfaceStatus').textContent=lanInterfaces.length ? 'Выберите адрес в списке или кнопкой. В WSL показываются интерфейсы Ubuntu, а доступ с других устройств зависит от сетевого режима WSL.' : 'Нет доступных IPv4-интерфейсов. Подключите Ethernet/Wi-Fi и обновите список.';
   }
   function newLanPassword() {
     $('setLanPassword').value = [...crypto.getRandomValues(new Uint8Array(18))].map(b => b.toString(16).padStart(2, '0')).join('');
   }
-  $('setLanBindAddress').addEventListener('change', () => { configuredLanAddress = $('setLanBindAddress').value; });
+  $('setLanBindAddress').addEventListener('change', () => { configuredLanAddress = $('setLanBindAddress').value; renderLanInterfaces(); });
   $('setLanAuthEnabled').addEventListener('change', () => {
     if ($('setLanAuthEnabled').checked && !$('setLanBindAddress').value) { $('setLanAuthEnabled').checked = false; $('lanControlStatus').textContent = 'Сначала выберите конкретный сетевой интерфейс.'; return; }
     if ($('setLanAuthEnabled').checked && !$('setLanPassword').value) newLanPassword();

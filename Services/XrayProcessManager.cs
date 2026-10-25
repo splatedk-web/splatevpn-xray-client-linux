@@ -32,12 +32,14 @@ public class XrayProcessManager : IXrayProcessManager
         if (httpPort == socksPort || httpPort is < 1 or > 65535 || socksPort is < 1 or > 65535)
             throw new ArgumentException("HTTP и SOCKS должны использовать разные порты от 1 до 65535.");
         // Never terminate cores owned by Karing, another client or a latency probe.
+        OnLogMessage?.Invoke("[STARTUP] Проверка конфигурации Xray…");
         if (!await ValidateAsync(configJson, ct)) return false;
         var checks = await Task.WhenAll(
             IsRunning && (httpPort == _httpPort || httpPort == _socksPort) ? Task.FromResult(false) : IsPortListeningAsync(httpPort),
             IsRunning && (socksPort == _httpPort || socksPort == _socksPort) ? Task.FromResult(false) : IsPortListeningAsync(socksPort));
         if (checks.Any(b => b)) { OnLogMessage?.Invoke("[ERROR] Локальные порты заняты. Измените HTTP/SOCKS порты в настройках."); return false; }
         ct.ThrowIfCancellationRequested();
+        OnLogMessage?.Invoke("[STARTUP] Запуск Xray и ожидание HTTP/SOCKS-портов…");
         Stop();
         await File.WriteAllTextAsync(_configPath, configJson, ct);
         _httpPort = httpPort; _socksPort = socksPort;

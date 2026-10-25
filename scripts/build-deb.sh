@@ -14,7 +14,7 @@ install -m644 Assets/app.png "$stage/usr/share/icons/hicolor/256x256/apps/splate
 chmod 755 "$stage/opt/splatevpn/SplateClient" "$stage/opt/splatevpn/core/xray" "$stage/opt/splatevpn/core/xray.bin" "$stage/opt/splatevpn/core/tun2socks"
 cat > "$stage/DEBIAN/control" <<'EOF'
 Package: splatevpn
-Version: 2.14.2-1
+Version: 2.14.3-1
 Section: net
 Priority: optional
 Architecture: amd64
@@ -39,4 +39,4 @@ chmod 755 "$stage/DEBIAN/postinst"
 find "$stage" -type d -exec chmod 755 {} +
 find "$stage" -type f -exec chmod 644 {} +
 chmod 755 "$stage/DEBIAN/postinst" "$stage/usr/libexec/splatevpn-network" "$stage/opt/splatevpn/SplateClient" "$stage/opt/splatevpn/core/xray" "$stage/opt/splatevpn/core/xray.bin" "$stage/opt/splatevpn/core/tun2socks"
-dpkg-deb --root-owner-group --build "$stage" dist/splatevpn_2.14.2-1_amd64.deb
+dpkg-deb --root-owner-group --build "$stage" dist/splatevpn_2.14.3-1_amd64.deb

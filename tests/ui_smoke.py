@@ -40,6 +40,7 @@ with tempfile.TemporaryDirectory(prefix="splate-ui-") as temp:
             assert data["readyState"] == "complete" and data["hasApp"]
             assert data["themes"] == 12 and not data["horizontalOverflow"]
             assert data["hasBalancerSettings"] and data["balancerModes"] == 3 and not data["windowsProxyImport"]
+            assert data["lanInterfaceOptions"] > 1, "Native Linux interface list is empty"
             startup = Path(temp) / "autostart/splatevpn.desktop"
             assert startup.exists() and "--minimized" in startup.read_text()
             data["autostartCreated"] = True

@@ -58,6 +58,7 @@ public partial class MainWindow : IDisposable
                 case nameof(MainViewModel.IsConnecting):
                 case nameof(MainViewModel.StatusText):
                 case nameof(MainViewModel.ConnectionDetail):
+                case nameof(MainViewModel.ConnectionSteps):
                 case nameof(MainViewModel.SessionDuration):
                 case nameof(MainViewModel.EgressIp):
                 case nameof(MainViewModel.EgressLocation):
@@ -164,6 +165,9 @@ public partial class MainWindow : IDisposable
                     SendServersToWeb();
                     SendSubscriptionsToWeb();
                     SendSettingsToWeb();
+                    break;
+                case "refreshLanInterfaces":
+                    SendLanInterfaces();
                     break;
 
                 case "checkAppUpdates":
@@ -535,6 +539,8 @@ public partial class MainWindow : IDisposable
         PostWebMessage("state", new
         {
             isConnected = _viewModel.IsConnected,
+            connectionSteps = _viewModel.ConnectionSteps,
+            connectionElapsedMs = _viewModel.ConnectionElapsedMs,
             activeTunMode = _viewModel.ActiveTunMode,
             activeAiXboxDns = _viewModel.ActiveAiXboxDns,
             activeAiDns = _viewModel.ActiveAiDns,
@@ -621,14 +627,7 @@ public partial class MainWindow : IDisposable
         PostWebMessage("smartDnsProviders", SmartDnsProviders.All);
         PostWebMessage("extendedSettings", _viewModel.Settings);
         SendProfiles();
-        var endpoints = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces()
-            .Where(n => n.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up && n.NetworkInterfaceType != System.Net.NetworkInformation.NetworkInterfaceType.Loopback)
-            .SelectMany(n => n.GetIPProperties().UnicastAddresses)
-            .Where(a => a.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && !a.Address.ToString().StartsWith("198.18.") && !a.Address.ToString().StartsWith("172.19."))
-            .Select(a => $"HTTP {a.Address}:{_viewModel.Settings.HttpPort} · SOCKS5 {a.Address}:{_viewModel.Settings.SocksPort}").ToArray();
-        if (!string.IsNullOrEmpty(_viewModel.Settings.LanBindAddress)) endpoints = endpoints.Where(line => line.StartsWith("HTTP " + _viewModel.Settings.LanBindAddress + ":", StringComparison.Ordinal)).ToArray();
-        PostWebMessage("lanInterfaces", LanSharing.Interfaces());
-        PostWebMessage("lanEndpoints", endpoints);
+        SendLanInterfaces();
         PostWebMessage("settings", new
         {
             theme = _viewModel.Settings.Theme,
@@ -734,6 +733,14 @@ public partial class MainWindow : IDisposable
         catch (OperationCanceledException) { PostWebMessage("speedTest", new { message = _speedTestCts.IsCancellationRequested ? "Тест остановлен." : "Тестовый сервер не ответил вовремя. VPN остаётся включённым.", done = true }); }
         catch (Exception ex) { PostWebMessage("speedTest", new { message = ex.Message, done = true }); }
         finally { _viewModel.IsSpeedTestRunning = false; _speedTestCts.Dispose(); _speedTestCts = null; }
+    }
+
+    private void SendLanInterfaces()
+    {
+        var interfaces=LanSharing.Interfaces();
+        PostWebMessage("lanInterfaces", interfaces);
+        PostWebMessage("lanEndpoints", interfaces.Where(n=>string.IsNullOrEmpty(_viewModel.Settings.LanBindAddress)||n.address==_viewModel.Settings.LanBindAddress)
+            .Select(n=>$"{n.name} · HTTP {n.address}:{_viewModel.Settings.HttpPort} · SOCKS5 {n.address}:{_viewModel.Settings.SocksPort}").ToArray());
     }
 
     private void QueueConnectionSettings(string previousConnection)
