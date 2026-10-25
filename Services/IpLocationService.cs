@@ -36,7 +36,8 @@ public static class IpLocationService
             {
                 using var handler = new SocketsHttpHandler
                 {
-                    ConnectTimeout = TimeSpan.FromMilliseconds(timeoutMs)
+                    ConnectTimeout = TimeSpan.FromMilliseconds(timeoutMs),
+                    AllowAutoRedirect = false
                 };
 
                 if (socksPort > 0 && socksPort <= 65535)
@@ -59,7 +60,9 @@ public static class IpLocationService
                 cts.CancelAfter(timeoutMs);
                 sw.Restart();
                 using var response = await client.GetAsync(endpoint, cts.Token).ConfigureAwait(false);
-                if (response.IsSuccessStatusCode || (int)response.StatusCode == 204)
+                if (response.StatusCode == HttpStatusCode.NoContent ||
+                    (endpoint.EndsWith("/connecttest.txt", StringComparison.Ordinal) && response.StatusCode == HttpStatusCode.OK &&
+                     (await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false)).Trim() == "Microsoft Connect Test"))
                 {
                     sw.Stop();
                     return (true, sw.ElapsedMilliseconds);

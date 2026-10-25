@@ -1212,7 +1212,7 @@ public partial class MainViewModel : ObservableObject
                     SelectedServer = previous.Node;
                     if (restoredCore) _trafficMonitor.Resume(previous.MetricsPort);
                     IsConnected = true; StatusText = "ПОДКЛЮЧЕНО";
-                    ConnectionDetail = ex is OperationCanceledException ? "Изменение отменено. Прежнее соединение сохранено." : "Прежний сервер сохранён. Новый сервер не запустился.";
+                    ConnectionDetail = ex is OperationCanceledException ? "Изменение отменено. Прежнее соединение сохранено." : $"Прежнее соединение сохранено. Изменение не применено: {ex.Message}";
                     if (ex is not OperationCanceledException) _quality.Record(node?.Id ?? "", 0);
                     if (_enableBackgroundWork) StartHealthCheckTimer();
                     NotificationRequested?.Invoke("Смена сервера не завершена", "Соединение восстановлено на прежнем сервере.");
@@ -1367,7 +1367,7 @@ public partial class MainViewModel : ObservableObject
             var decision = await Application.Current.Dispatcher.InvokeAsync(() =>
             {
                 if (snapshot.Epoch != _connectionEpoch || snapshot.Request != _selectionRequest) return BalancerPolicy.Decision.Keep;
-                if (ping > 0) { _quality.Record(snapshot.Node.Id, ping); snapshot.Node.Ping = ping; ServerPingUpdated?.Invoke(snapshot.Node); }
+                if (ping > 0) { _quality.Record(snapshot.Node.Id, ping); snapshot.Node.Ping = ping; ServerPingUpdated?.Invoke(snapshot.Node); UpdateConnectivityStatus(true); }
                 return _balancerPolicy.Observe(ping, Settings, IsSpeedTestRunning, _currentDownloadBps, _probes.NetworkAvailable);
             });
             if (decision == BalancerPolicy.Decision.ConfirmFailure)
@@ -1375,7 +1375,16 @@ public partial class MainViewModel : ObservableObject
                 await Task.Delay(200, snapshot.Token);
                 var confirmation = await _probes.CurrentAsync(snapshot.Port, 5000, snapshot.Token);
                 if (snapshot.Epoch != _connectionEpoch || snapshot.Token.IsCancellationRequested) return;
-                if (confirmation > 0) { _balancerPolicy.ConfirmedSuccess(); _quality.Record(snapshot.Node.Id, confirmation); return; }
+                if (confirmation > 0)
+                {
+                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        if (snapshot.Epoch != _connectionEpoch) return;
+                        _balancerPolicy.ConfirmedSuccess(); _quality.Record(snapshot.Node.Id, confirmation); UpdateConnectivityStatus(true);
+                    });
+                    return;
+                }
+                await Application.Current.Dispatcher.InvokeAsync(() => { if (snapshot.Epoch == _connectionEpoch) UpdateConnectivityStatus(false); });
                 decision = BalancerPolicy.Decision.FindReserve;
             }
             if (decision is not (BalancerPolicy.Decision.FindReserve or BalancerPolicy.Decision.Optimize)) return;
@@ -2043,6 +2052,22 @@ public partial class MainViewModel : ObservableObject
     }
 
     private int _ipDetectionEpoch;
+    internal void UpdateConnectivityStatus(bool reachable)
+    {
+        if (!IsConnected || IsConnecting || StatusText == "ОШИБКА МАРШРУТА" || HasPendingConnectionSettings) return;
+        if (!reachable)
+        {
+            StatusText = "СВЯЗЬ НЕ ПОДТВЕРЖДЕНА";
+            ConnectionDetail = "Ядро работает, но проверка связи не прошла. " +
+                (AutoFallbackFastestServer && Settings.BalancerMode != "initial_only" ? "Балансировщик проверяет резервные серверы." : "Выберите другой сервер или повторите проверку.");
+        }
+        else
+        {
+            StatusText = "ПОДКЛЮЧЕНО";
+            ConnectionDetail = ActiveTunMode ? "TUN активен · Все приложения" : $"Системный прокси :{ActiveHttpPort}";
+        }
+    }
+
     public async Task DetectEgressAndHealthAsync()
     {
         var epoch = _connectionEpoch;
@@ -2060,7 +2085,7 @@ public partial class MainViewModel : ObservableObject
             var ipDetails = await ipTask;
             var (connSuccess, rtt) = await connTask;
 
-            Application.Current?.Dispatcher?.InvokeAsync(() =>
+            await Application.Current.Dispatcher.InvokeAsync(() =>
             {
                 if (epoch != _connectionEpoch) return;
                 if (ipDetails != null && ipDetails.IsSuccess)
@@ -2078,11 +2103,7 @@ public partial class MainViewModel : ObservableObject
                     EgressLocation = IsConnected ? "Выход VPN не подтверждён · повторите проверку" : "Нет данных";
                 }
                 ConnectionRtt = connSuccess ? rtt : -1;
-                if (IsConnected && !IsConnecting && StatusText != "ОШИБКА МАРШРУТА")
-                {
-                    StatusText = "ПОДКЛЮЧЕНО";
-                    if (ipDetails?.IsSuccess != true && !connSuccess) ConnectionDetail = "Ядро запущено, но сайты не ответили. VPN остаётся включённым.";
-                }
+                UpdateConnectivityStatus(ipDetails?.IsSuccess == true || connSuccess);
             });
         }
         catch (Exception ex)

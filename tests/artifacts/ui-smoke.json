@@ -2,17 +2,17 @@
   "readyState": "complete",
   "title": "SplateVPN Desktop",
   "received": [
-    "appUpdate",
-    "state",
+    "log",
     "servers",
     "subscriptions",
+    "state",
+    "appUpdate",
     "smartDnsProviders",
     "extendedSettings",
     "connectionProfiles",
     "lanInterfaces",
     "lanEndpoints",
-    "settings",
-    "log"
+    "settings"
   ],
   "themes": 12,
   "hasApp": true,

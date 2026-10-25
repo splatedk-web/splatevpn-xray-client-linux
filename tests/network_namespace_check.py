@@ -45,7 +45,7 @@ try:
     run("ip", "-n", CLIENT, "-6", "route", "add", "default", "via", "fd00:203::1")
     before = {f: run("ip", "-n", CLIENT, f, "route", "show", "table", "main") for f in ("-4", "-6")}
     run("ip", "netns", "exec", CLIENT, "sysctl", "-w", "net.ipv4.conf.all.rp_filter=1", "net.ipv4.conf.default.rp_filter=1", "net.ipv4.conf.splate-c0.rp_filter=1")
-    echo = '''import socket,threading,time
+    echo = '''import socket,threading,time,sys
 def serve(family,address):
  s=socket.socket(family);s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
  if family==socket.AF_INET6:s.setsockopt(socket.IPPROTO_IPV6,socket.IPV6_V6ONLY,1)
@@ -54,10 +54,18 @@ def serve(family,address):
   c,_=s.accept();data=c.recv(1024);c.sendall(data);c.close()
 threading.Thread(target=serve,args=(socket.AF_INET,'0.0.0.0'),daemon=True).start()
 threading.Thread(target=serve,args=(socket.AF_INET6,'::'),daemon=True).start()
+def udp(family,address):
+ s=socket.socket(family,socket.SOCK_DGRAM)
+ if family==socket.AF_INET6:s.setsockopt(socket.IPPROTO_IPV6,socket.IPV6_V6ONLY,1)
+ s.bind((address,39083))
+ while True:
+  data,peer=s.recvfrom(2048);s.sendto(data,peer)
+threading.Thread(target=udp,args=(socket.AF_INET,sys.argv[1]),daemon=True).start()
+threading.Thread(target=udp,args=(socket.AF_INET6,sys.argv[2]),daemon=True).start()
 time.sleep(300)
 '''
-    start(CLIENT, "python3", "-c", echo)
-    start(REMOTE, "python3", "-c", echo)
+    start(CLIENT, "python3", "-c", echo,"10.203.0.2","fd00:203::2")
+    start(REMOTE, "python3", "-c", echo,"203.0.113.1","2001:db8:203::1")
     with tempfile.TemporaryDirectory(prefix="splate-network-") as temp:
         cfg = Path(temp) / "xray.json"
         cfg.write_text(json.dumps({"inbounds": [{"listen": "127.0.0.1", "port": 39081, "protocol": "socks", "settings": {"udp": True}}], "outbounds": [{"protocol": "freedom", "streamSettings": {"sockopt": {"interface": "splate-c0"}}}]}))
@@ -84,6 +92,9 @@ s.connect((TARGET,39080));s.sendall(b'splate-incoming-check');assert s.recv(100)
         for family, external, local in [("socket.AF_INET", "203.0.113.1", "10.203.0.2"), ("socket.AF_INET6", "2001:db8:203::1", "fd00:203::2")]:
             python(REMOTE, probe.replace("FAMILY", family).replace("BIND", f"s.bind(({external!r},0))").replace("TARGET", repr(local)))
             python(CLIENT, probe.replace("FAMILY", family).replace("BIND", "").replace("TARGET", repr(external)))
+            udp_probe=probe.replace("socket.socket(FAMILY)","socket.socket(FAMILY,socket.SOCK_DGRAM)").replace("39080","39083")
+            python(CLIENT, udp_probe.replace("FAMILY",family).replace("BIND","").replace("TARGET",repr(external)))
+            python(REMOTE, udp_probe.replace("FAMILY",family).replace("BIND",f"s.bind(({external!r},0))").replace("TARGET",repr(local)))
         for family in ("-4", "-6"):
             assert [line.strip() for line in before[family].splitlines()] == [line.strip() for line in run("ip", "-n", CLIENT, family, "route", "show", "table", "main").splitlines() if "SplateTUN" not in line]
         run("ip", "-n", CLIENT, "addr", "add", "10.203.0.3/24", "dev", "splate-c0")
@@ -101,7 +112,28 @@ s.connect((TARGET,39080));s.sendall(b'splate-incoming-check');assert s.recv(100)
         owner.wait(timeout=3)
         assert helper2.wait(timeout=8) == 0
         assert "SplateTUN" not in run("ip", "-n", CLIENT, "link", "show")
-        print("PASS real TUN IPv4/IPv6: outgoing SOCKS, unsolicited incoming, strict rp_filter, changed address, unchanged main routes, EOF and parent-death cleanup")
+        print("PASS real TUN IPv4/IPv6 TCP/UDP: outgoing SOCKS, unsolicited incoming, strict rp_filter, changed address, unchanged main routes, EOF and parent-death cleanup")
+        # Full model/core/proxy session in the same isolated network. Two VLESS
+        # fixtures allow a deterministic real outage, independent of the internet.
+        http = '''from http.server import BaseHTTPRequestHandler,HTTPServer
+class Handler(BaseHTTPRequestHandler):
+ def do_GET(self):self.send_response(204);self.end_headers()
+ def log_message(self,*args):pass
+HTTPServer(('0.0.0.0',39082),Handler).serve_forever()
+'''
+        start(REMOTE,"python3","-c",http)
+        servers=[]
+        for port in (39091,39092):
+            path=Path(temp)/f"server-{port}.json"
+            path.write_text(json.dumps({"log":{"loglevel":"warning"},"inbounds":[{"listen":"0.0.0.0","port":port,"protocol":"vless","settings":{"decryption":"none","clients":[{"id":"00000000-0000-0000-0000-000000000001"}]}}],"outbounds":[{"protocol":"freedom","settings":{"finalRules":[{"action":"allow","ip":["203.0.113.1/32"]}]}}]}))
+            servers.append(start(REMOTE,str(ROOT/"core/xray"),"run","-c",str(path),stdout=subprocess.DEVNULL))
+        time.sleep(.5)
+        env=dict(os.environ,XDG_CONFIG_HOME=temp+"/config",XDG_DATA_HOME=temp+"/data",GSETTINGS_BACKEND="keyfile")
+        session=start(CLIENT,str(ROOT/"dist/checks/PortChecks"),"--tun-session",str(ROOT),str(servers[0].pid),env=env)
+        assert session.wait(timeout=120)==0,"Full TUN session failed"
+        assert "SplateTUN" not in run("ip","-n",CLIENT,"link","show")
+        for family in ("-4","-6"):
+            assert "20214" not in run("ip","-n",CLIENT,family,"rule","show")
 finally:
     for child in reversed(children):
         if child.poll() is None:

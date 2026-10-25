@@ -1078,6 +1078,10 @@
       els.coreStatusText.className = 'core-status-headline ' + (visualConnected ? 'color-emerald' : (state.isConnecting || routeWarning ? 'color-cyan' : ''));
     }
     if (els.coreStatusDetail) els.coreStatusDetail.textContent = state.statusDetail;
+    document.getElementById('tunModeStatus').textContent = state.isConnecting ? 'Применение режима…' :
+      state.isConnected ? (state.activeTunMode ? 'TUN работает · все приложения' :
+        (state.settings.enableTunMode ? 'TUN не применён · сейчас работает системный прокси' : 'TUN выключен · сейчас работает системный прокси')) :
+      'Все приложения · пакет .deb и разрешение polkit';
 
     // Connect Button
     if (els.btnToggleConnection) {

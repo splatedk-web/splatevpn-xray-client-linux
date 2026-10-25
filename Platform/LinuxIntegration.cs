@@ -8,7 +8,7 @@ public static class WindowsIntegrationService
     public static string DesktopEntry(string executable) => "[Desktop Entry]\nType=Application\nName=SplateVPN\nExec=\"" + executable.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("`", "\\`").Replace("$", "\\$").Replace("%", "%%") + "\" --minimized\nTerminal=false\nX-GNOME-Autostart-enabled=true\n";
     public static void SetAutoStart(bool enable)
     {
-        if (!enable) { File.Delete(AutoStartPath); return; }
+        if (!enable) { if (File.Exists(AutoStartPath)) File.Delete(AutoStartPath); return; }
         var exe = Environment.ProcessPath ?? throw new IOException("Не найден путь приложения.");
         if(Path.GetFileNameWithoutExtension(exe) == "dotnet") throw new IOException("Автозапуск доступен в опубликованной сборке. Запустите установленный SplateClient.");
         Directory.CreateDirectory(Path.GetDirectoryName(AutoStartPath)!);

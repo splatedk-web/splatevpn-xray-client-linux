@@ -60,6 +60,7 @@ public partial class MainWindow : IDisposable
                 case nameof(MainViewModel.ConnectionDetail):
                 case nameof(MainViewModel.SessionDuration):
                 case nameof(MainViewModel.EgressIp):
+                case nameof(MainViewModel.EgressLocation):
                 case nameof(MainViewModel.CountryName):
                 case nameof(MainViewModel.CountryFlag):
                 case nameof(MainViewModel.ConnectionRtt):
@@ -402,6 +403,7 @@ public partial class MainWindow : IDisposable
                         var key = keyElem.GetString();
                         Dispatcher.Invoke(() =>
                         {
+                            var previousConnection = ConnectionSettings.Signature(_viewModel.Settings);
                             switch (key)
                             {
                                 case "EnableTunMode":
@@ -418,6 +420,7 @@ public partial class MainWindow : IDisposable
                                     break;
                             }
                             SendSettingsToWeb();
+                            QueueConnectionSettings(previousConnection);
                         });
                     }
                     break;
@@ -460,12 +463,7 @@ public partial class MainWindow : IDisposable
                             if (!_viewModel.EnableTunMode || !_viewModel.EnableSniffing) _viewModel.IsFakeDns = false;
                             _viewModel.SaveSettingsCommand.Execute(null);
                             SendSettingsToWeb();
-                            if (previousConnection != ConnectionSettings.Signature(_viewModel.Settings) && (_viewModel.IsConnected || _viewModel.IsConnecting))
-                            {
-                                ++_settingsApplyVersion;
-                                if (_settingsApplyTask == null || _settingsApplyTask.IsCompleted)
-                                    _settingsApplyTask = RunWebOperationAsync("applyAiRoute", ApplyConnectionSettingsAsync);
-                            }
+                            QueueConnectionSettings(previousConnection);
                         });
                     }
                     break;
@@ -736,6 +734,15 @@ public partial class MainWindow : IDisposable
         catch (OperationCanceledException) { PostWebMessage("speedTest", new { message = _speedTestCts.IsCancellationRequested ? "Тест остановлен." : "Тестовый сервер не ответил вовремя. VPN остаётся включённым.", done = true }); }
         catch (Exception ex) { PostWebMessage("speedTest", new { message = ex.Message, done = true }); }
         finally { _viewModel.IsSpeedTestRunning = false; _speedTestCts.Dispose(); _speedTestCts = null; }
+    }
+
+    private void QueueConnectionSettings(string previousConnection)
+    {
+        SendFullStateToWeb();
+        if (previousConnection == ConnectionSettings.Signature(_viewModel.Settings) || (!_viewModel.IsConnected && !_viewModel.IsConnecting)) return;
+        ++_settingsApplyVersion;
+        if (_settingsApplyTask == null || _settingsApplyTask.IsCompleted)
+            _settingsApplyTask = RunWebOperationAsync("applyConnectionSettings", ApplyConnectionSettingsAsync);
     }
 
     private async Task ApplyConnectionSettingsAsync()

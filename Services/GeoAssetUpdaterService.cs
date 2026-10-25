@@ -19,6 +19,7 @@ public static class GeoAssetUpdaterService
         {
             if (string.IsNullOrEmpty(coreDirectory) || !Directory.Exists(coreDirectory))
                 throw new DirectoryNotFoundException("Папка ядра не найдена.");
+            var assets = AdFilterService.EnsureAssets(Path.GetDirectoryName(Path.GetFullPath(coreDirectory))!);
             using var ownedClient = client == null ? new HttpClient { Timeout = TimeSpan.FromMinutes(2) } : null;
             var http = client ?? ownedClient!;
             Directory.CreateDirectory(staging);
@@ -33,11 +34,12 @@ public static class GeoAssetUpdaterService
                 if (checksum?.Length != 64 || !Convert.ToHexString(SHA256.HashData(bytes)).Equals(checksum, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidDataException($"Контрольная сумма {name} не совпадает.");
                 await File.WriteAllBytesAsync(Path.Combine(staging, name), bytes, ct);
-                files[Path.Combine(coreDirectory, name)] = bytes;
+                files[Path.Combine(assets, name)] = bytes;
             }
             await ValidateAsync(coreDirectory, staging, ct);
             foreach (var name in new[] { "geoip.dat", "geosite.dat" })
-                if (File.Exists(Path.Combine(coreDirectory, name))) files[Path.Combine(coreDirectory, name + ".previous")] = await File.ReadAllBytesAsync(Path.Combine(coreDirectory, name), ct);
+                if (File.Exists(Path.Combine(assets, name))) files[Path.Combine(assets, name + ".previous")] = await File.ReadAllBytesAsync(Path.Combine(assets, name), ct);
+            files[Path.Combine(assets, "geo.user-updated")] = System.Text.Encoding.UTF8.GetBytes(DateTimeOffset.UtcNow.ToString("O"));
             ct.ThrowIfCancellationRequested();
             AtomicFileSet.Write(files);
             log?.Invoke("[GEO-UPDATE] Обе базы проверены и успешно обновлены.");
@@ -85,15 +87,17 @@ public static class GeoAssetUpdaterService
         try
         {
             Directory.CreateDirectory(staging); var files = new Dictionary<string, byte[]>();
+            var assets = AdFilterService.EnsureAssets(Path.GetDirectoryName(Path.GetFullPath(coreDirectory))!);
             foreach (var name in new[] { "geoip.dat", "geosite.dat" })
             {
-                var target = Path.Combine(coreDirectory, name);
+                var target = Path.Combine(assets, name);
                 var previous = await File.ReadAllBytesAsync(target + ".previous", ct);
                 await File.WriteAllBytesAsync(Path.Combine(staging, name), previous, ct);
                 files[target] = previous;
                 files[target + ".previous"] = await File.ReadAllBytesAsync(target, ct);
             }
             await ValidateAsync(coreDirectory, staging, ct);
+            files[Path.Combine(assets, "geo.user-updated")] = System.Text.Encoding.UTF8.GetBytes(DateTimeOffset.UtcNow.ToString("O"));
             ct.ThrowIfCancellationRequested(); AtomicFileSet.Write(files);
             log?.Invoke("[GEO] Предыдущие геобазы проверены и восстановлены."); return true;
         }

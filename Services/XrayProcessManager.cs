@@ -62,7 +62,7 @@ public class XrayProcessManager : IXrayProcessManager
             {
                 ct.ThrowIfCancellationRequested();
                 if (proc.HasExited) { Stop(); return false; }
-                var ready = await IsPortListeningAsync(socksPort);
+                var ready = await IsPortListeningAsync(socksPort) && await IsPortListeningAsync(httpPort);
                 if (ready && !proc.HasExited)
                 {
                     OnLogMessage?.Invoke($"[CORE] HTTP :{httpPort}, SOCKS :{socksPort} готовы.");

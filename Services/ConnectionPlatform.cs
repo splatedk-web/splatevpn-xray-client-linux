@@ -30,7 +30,15 @@ public sealed class LinuxConnectionPlatform : IConnectionPlatform
     public ProxyPreflight InspectProxyForTun() => SystemProxyManager.InspectForTun();
     public ProxyPreflight ReadProxyStatus() => SystemProxyManager.ReadStatus();
     public void SuspendProxyForTun(ProxyPreflight approved) => SystemProxyManager.SuspendForTun(approved);
-    public void CheckEnvironment(Models.AppSettings settings, IReadOnlyCollection<int> ownedPorts) => ConnectionPreflight.Check(AppContext.BaseDirectory, settings, ownedPorts);
+    public void CheckEnvironment(Models.AppSettings settings, IReadOnlyCollection<int> ownedPorts)
+    {
+        ConnectionPreflight.Check(AppContext.BaseDirectory, settings, ownedPorts);
+        if (!settings.EnableTunMode) return;
+        if (!IsAdministrator) throw new IOException("TUN недоступен: установите пакет .deb и запустите SplateVPN из меню приложений. Сетевой помощник polkit не установлен.");
+        if (!File.Exists("/dev/net/tun")) throw new IOException("TUN недоступен: в системе отсутствует /dev/net/tun.");
+        if (LinuxCommand.Run("id", ["-u"]) != "0" && !LinuxCommand.Run("getcap", [Path.Combine(AppContext.BaseDirectory, "core", "xray.bin")]).Contains("cap_net_raw"))
+            throw new IOException("Для TUN запустите установленный /opt/splatevpn/SplateClient. У ядра этой копии нет сетевых прав; переустановите пакет .deb, если ошибка остаётся.");
+    }
 }
 
 public interface IConnectionProbes

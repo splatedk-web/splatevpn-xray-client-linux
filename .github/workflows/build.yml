@@ -21,7 +21,7 @@ jobs:
         with:
           dotnet-version: 8.0.x
       - name: Install test dependencies
-        run: sudo apt-get update && sudo apt-get install -y zbar-tools gsettings-desktop-schemas
+        run: sudo apt-get update && sudo apt-get install -y zbar-tools gsettings-desktop-schemas xvfb xauth
       - name: Build and run behavioral checks
         run: |
           dotnet publish tests/PortChecks -c Release -r linux-x64 --self-contained true -o dist/checks
@@ -43,6 +43,12 @@ jobs:
           dotnet publish -c Release -r linux-x64 --self-contained true -o dist/linux-x64
           sh scripts/build-deb.sh
           python3 scripts/verify-package.py
+      - name: Install package and open its native window as an ordinary user
+        run: |
+          sudo apt-get install -y ./dist/splatevpn_*_amd64.deb
+          test -x /usr/libexec/splatevpn-network
+          getcap /opt/splatevpn/core/xray.bin | grep cap_net_raw
+          SPLATE_UI_BUILD=/opt/splatevpn dbus-run-session -- xvfb-run -a -s "-screen 0 1280x900x24" python3 tests/ui_smoke.py
       - uses: actions/upload-artifact@v4
         with:
           name: splatevpn-linux-x64

@@ -71,7 +71,7 @@
   }
   window.SplateExtras.collectSettings = () => ({ ...collect(), routingRegion: $('setRoutingRegion').value, setupCompleted, lanBindAddress: $('setLanBindAddress').value, lanAuthEnabled: $('setLanAuthEnabled').checked, lanUsername: $('setLanUsername').value, lanPassword: $('setLanPassword').value });
 
-  const categories = { all: 'Все', balancer: 'Балансировщик', appearance: 'Оформление', network: 'Подключение', profiles: 'Профили', security: 'DNS и защита', system: 'Система', advanced: 'Дополнительно' };
+  const categories = { all: 'Все', appearance: 'Оформление', network: 'Подключение', balancer: 'Балансировщик', profiles: 'Профили', security: 'DNS и защита', system: 'Система', advanced: 'Дополнительно' };
   const classify = section => {
     if (section.querySelector('#setBalancerMode')) return 'balancer';
     if (section.querySelector('#setTheme')) return 'appearance';

@@ -3,7 +3,7 @@ using SplateClientDesktop.Models;
 
 namespace SplateClientDesktop.Services;
 
-// Only settings used by the core or the Windows network integration belong here.
+// Only settings used by the core or the Linux network integration belong here.
 // Appearance, subscriptions and balancing policy must not interrupt a session.
 public static class ConnectionSettings
 {

@@ -29,7 +29,8 @@ public static class AdFilterService
         {
             var source = new FileInfo(Path.Combine(baseDirectory, "core", file));
             var target = new FileInfo(Path.Combine(AssetDirectory, file));
-            if (source.Exists && (!target.Exists || source.Length != target.Length || source.LastWriteTimeUtc != target.LastWriteTimeUtc))
+            if (source.Exists && (!target.Exists || (!File.Exists(Path.Combine(AssetDirectory, "geo.user-updated")) &&
+                (source.Length != target.Length || source.LastWriteTimeUtc != target.LastWriteTimeUtc))))
             { File.Copy(source.FullName, target.FullName + ".tmp", true); File.Move(target.FullName + ".tmp", target.FullName, true); File.SetLastWriteTimeUtc(target.FullName, source.LastWriteTimeUtc); }
         }
         return AssetDirectory;

@@ -254,7 +254,7 @@ internal static class ViewModelChecks
         static Task Health(MainViewModel model)=>(Task)typeof(MainViewModel).GetMethod("RunHealthCheckAsync",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(model,null)!;
     }
     private static void Check(bool value,string label){if(!value)throw new Exception(label);}
-    private sealed class MemoryStorage:IServerStorage
+    internal sealed class MemoryStorage:IServerStorage
     {
         public List<ServerNode> Nodes=[];
         public List<SubscriptionItem> Subscriptions=[];

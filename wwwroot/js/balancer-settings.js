@@ -26,7 +26,7 @@
         <fieldset class="balancer-modes"><legend>Режим балансировщика</legend>${modes.map(([value, title, hint]) => `<label class="balancer-mode"><input type="radio" name="balancerModeChoice" value="${value}"><span><strong>${title}</strong><span>${hint}</span></span></label>`).join('')}</fieldset>
         <div class="balancer-options"></div>
         <button id="resetBalancer" class="link-btn balancer-reset" type="button">Вернуть настройки по умолчанию</button>`;
-      $('tab-settings').querySelector('.settings-grid').prepend(section);
+      $('setEnableTun').closest('.settings-section').after(section);
       schema.balancerMode = ['setBalancerMode', 'value'];
       for (const [key, id, label, options, initial, format, group] of fields) {
         const row = document.createElement('div'); row.className = 'setting-item'; row.dataset.balancerGroup = group;
@@ -40,6 +40,7 @@
         const mode = $('setBalancerMode').value;
         section.querySelectorAll('[name="balancerModeChoice"]').forEach(radio => { radio.checked = radio.value === mode; });
         $('balancerModeSummary').textContent = modes.find(m => m[0] === mode)?.[1] || '';
+        document.querySelector('.auto-select-desc').textContent = modes.find(m => m[0] === mode)?.[1] || '';
         $('balancerDisabledHint').hidden = $('setAutoFallback').checked;
         section.querySelectorAll('[data-balancer-group]').forEach(row => {
           row.hidden = row.dataset.balancerGroup === 'monitor' ? mode === 'initial_only' : mode !== 'balanced';
