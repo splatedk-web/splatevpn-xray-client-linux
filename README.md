@@ -17,7 +17,7 @@ Debian 13+ с графическим рабочим столом. На данн�
 Скачанный пакет устанавливается так:
 
 ```sh
-sudo apt install ./splatevpn_2.14.0-1_amd64.deb
+sudo apt install ./splatevpn_2.14.1-1_amd64.deb
 ```
 
 Запуск из меню приложений или `/opt/splatevpn/SplateClient`.

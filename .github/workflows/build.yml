@@ -26,6 +26,8 @@ jobs:
         run: |
           dotnet publish tests/PortChecks -c Release -r linux-x64 --self-contained true -o dist/checks
           dist/checks/PortChecks "$PWD"
+      - name: Check proxy operations on the model dispatcher
+        run: GSETTINGS_BACKEND=keyfile dist/checks/PortChecks --proxy-only
       - name: Verify real TUN and incoming connections
         run: sudo python3 tests/network_namespace_check.py
       - name: Publish and package

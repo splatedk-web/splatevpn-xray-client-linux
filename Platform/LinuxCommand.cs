@@ -15,10 +15,10 @@ public static class LinuxCommand
         timeout.CancelAfter(TimeSpan.FromSeconds(30));
         try
         {
-            if (input != null) { await p.StandardInput.WriteAsync(input.AsMemory(), timeout.Token); p.StandardInput.Close(); }
-            await p.WaitForExitAsync(timeout.Token);
-            if (p.ExitCode != 0) throw new IOException($"{file}: {await errors}");
-            return (await output).TrimEnd();
+            if (input != null) { await p.StandardInput.WriteAsync(input.AsMemory(), timeout.Token).ConfigureAwait(false); p.StandardInput.Close(); }
+            await p.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
+            if (p.ExitCode != 0) throw new IOException($"{file}: {await errors.ConfigureAwait(false)}");
+            return (await output.ConfigureAwait(false)).TrimEnd();
         }
         catch { try { p.Kill(true); } catch (InvalidOperationException) { } throw; }
     }
