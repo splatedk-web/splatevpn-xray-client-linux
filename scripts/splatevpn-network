@@ -1,0 +1,122 @@
+#!/usr/bin/python3
+"""Fixed-function polkit TUN owner. EOF/parent death removes owned rules.
+Install root:root 0755. Never executes user-provided code or shell commands.
+"""
+import fcntl
+import ipaddress
+import json
+import os
+import select
+import signal
+import subprocess
+import sys
+import time
+
+DEVICE, TABLE, BASE = "SplateTUN", "20214", 22000
+CORE = "/opt/splatevpn/core/tun2socks"
+
+
+def run(*args, check=True):
+    return subprocess.run(args, check=check, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout
+
+
+def source_rules(addresses):
+    return [("-4" if ipaddress.ip_address(a).version == 4 else "-6", a) for a in addresses]
+
+
+def main():
+    if len(sys.argv) != 3 or os.geteuid() != 0:
+        raise RuntimeError("Usage: pkexec splatevpn-network SOCKS_PORT PARENT_PID")
+    port, parent = map(int, sys.argv[1:])
+    if not 1 <= port <= 65535 or parent < 2:
+        raise ValueError("Invalid port or parent")
+    owner = int(os.environ.get("PKEXEC_UID", os.getuid()))
+    if os.stat(f"/proc/{parent}").st_uid != owner:
+        raise PermissionError("Parent must belong to authorizing user")
+    parent_fd = os.pidfd_open(parent)
+    lock = open("/run/splatevpn-network.lock", "a")
+    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    os.environ["PATH"] = "/usr/sbin:/usr/bin:/sbin:/bin"
+    for family in ("-4", "-6"):
+        existing = json.loads(run("ip", "-j", family, "rule", "show"))
+        if any(BASE <= int(r.get("priority", 0)) <= BASE + 3 for r in existing):
+            raise RuntimeError("Routing priorities 22000-22003 occupied")
+        if run("ip", family, "route", "show", "table", TABLE, check=False).strip():
+            raise RuntimeError("Routing table 20214 occupied")
+    if any(link["ifname"] == DEVICE for link in json.loads(run("ip", "-j", "link", "show"))):
+        raise RuntimeError("SplateTUN already exists")
+    rules, routes, child, created = [], [], None, False
+
+    def rule(family, priority, *args):
+        run("ip", family, "rule", "add", "priority", str(priority), *args)
+        rules.append((family, str(priority), args))
+
+    def refresh_physical_rules():
+        physical = [link for link in json.loads(run("ip", "-j", "addr", "show")) if link["ifname"] not in (DEVICE, "lo")]
+        addresses = [a["local"] for link in physical for a in link.get("addr_info", []) if a["scope"] in ("global", "link")]
+        desired = [(family, str(BASE), ("from", address, "lookup", "main")) for family, address in source_rules(addresses)]
+        desired += [(family, str(BASE + 1), ("oif", link["ifname"], "lookup", "main")) for family in ("-4", "-6") for link in physical]
+        for family, priority, args in desired:
+            if (family, priority, args) not in rules:
+                rule(family, priority, *args)
+        for entry in list(rules):
+            family, priority, args = entry
+            if int(priority) <= BASE + 1 and entry not in desired:
+                run("ip", family, "rule", "del", "priority", priority, *args, check=False)
+                rules.remove(entry)
+
+    def stopped(*_):
+        raise InterruptedError("Stopping")
+
+    signal.signal(signal.SIGTERM, stopped)
+    signal.signal(signal.SIGINT, stopped)
+    try:
+        run("ip", "tuntap", "add", "dev", DEVICE, "mode", "tun")
+        created = True
+        run("ip", "addr", "add", "172.19.0.1/30", "dev", DEVICE)
+        run("ip", "-6", "addr", "add", "fdfe:dcba:9876::1/126", "dev", DEVICE, "nodad")
+        run("ip", "link", "set", "dev", DEVICE, "mtu", "1500", "up")
+        child = subprocess.Popen([CORE, "--device", "tun://" + DEVICE, "--proxy", f"socks5://127.0.0.1:{port}", "--loglevel", "warn"], stdout=sys.stderr, stderr=sys.stderr)
+        time.sleep(0.2)
+        if child.poll() is not None:
+            raise RuntimeError("tun2socks exited before readiness")
+        # Incoming replies use the physical source address and original table.
+        refresh_physical_rules()
+        for family in ("-4", "-6"):
+            rule(family, BASE + 2, "lookup", "main", "suppress_prefixlength", "0")
+            run("ip", family, "route", "add", "table", TABLE, "default", "dev", DEVICE)
+            routes.append(family)
+            rule(family, BASE + 3, "lookup", TABLE)
+        print("READY", flush=True)
+        next_refresh = time.monotonic() + 1
+        while child.poll() is None:
+            ready, _, _ = select.select([sys.stdin, parent_fd], [], [], 0.5)
+            if parent_fd in ready or (sys.stdin in ready and not os.read(sys.stdin.fileno(), 1)):
+                return
+            if time.monotonic() >= next_refresh:
+                refresh_physical_rules()
+                next_refresh = time.monotonic() + 1
+        raise RuntimeError("tun2socks stopped unexpectedly")
+    finally:
+        for family, priority, args in reversed(rules):
+            run("ip", family, "rule", "del", "priority", priority, *args, check=False)
+        for family in routes:
+            run("ip", family, "route", "del", "table", TABLE, "default", "dev", DEVICE, check=False)
+        if child is not None:
+            child.terminate()
+            try:
+                child.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                child.kill()
+                child.wait()
+        if created:
+            run("ip", "link", "delete", "dev", DEVICE, check=False)
+        os.close(parent_fd)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (Exception, KeyboardInterrupt) as error:
+        print(str(error), file=sys.stderr)
+        sys.exit(1)

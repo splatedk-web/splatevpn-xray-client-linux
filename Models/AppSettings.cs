@@ -1,0 +1,92 @@
+namespace SplateClientDesktop.Models;
+
+using System.Collections.Generic;
+
+public class AppSettings
+{
+    public double GlassTransparency { get; set; }
+    public bool GlassBlurEnabled { get; set; } = true;
+    public bool GroupServers { get; set; } = true;
+    public string BalancerMode { get; set; } = "balanced";
+    public int BalancerHealthSeconds { get; set; } = 2;
+    public int BalancerFailureConfirmations { get; set; } = 2;
+    public int BalancerOptimizationMinutes { get; set; } = 5;
+    public int BalancerCooldownSeconds { get; set; } = 60;
+    public int BalancerImprovementPercent { get; set; } = 30;
+    public bool PresetSubscriptionsInitialized { get; set; }
+    public string AiRoutingMode { get; set; } = "dns_ai";
+    public bool EnableAiDns { get; set; }
+    public string AiDnsProvider { get; set; } = "dns_ai";
+    public bool AiTlsFragment { get; set; }
+    public bool AiDnsAutoSwitch { get; set; } = true;
+    public List<ConnectionProfile> ConnectionProfiles { get; set; } = new();
+    public string? ConnectionProfileUndo { get; set; }
+    public string AdBlockAllowlist { get; set; } = "";
+    public string CustomDohUrl { get; set; } = "https://dns.google/dns-query";
+    public bool EnableAdBlock { get; set; } = true;
+    public string CustomBlockRules { get; set; } = string.Empty;
+    public bool EnableMux { get; set; }
+    public int MuxConcurrency { get; set; } = 8;
+    public string TlsFragmentLength { get; set; } = "100-200";
+    public string TlsFragmentInterval { get; set; } = "10-20";
+    public string TlsFragmentPackets { get; set; } = "tlshello";
+    public bool ShareLan { get; set; }
+    public string LanBindAddress { get; set; } = "";
+    public bool LanAuthEnabled { get; set; }
+    public string LanUsername { get; set; } = "splate";
+    public string LanPassword { get; set; } = "";
+    public bool UpstreamProxyEnabled { get; set; }
+    public string UpstreamProxyHost { get; set; } = "";
+    public int UpstreamProxyPort { get; set; } = 3128;
+    public string ServerSort { get; set; } = "default";
+    public string ServerFilter { get; set; } = "all";
+    public int SettingsSchemaVersion { get; set; }
+    public string Theme { get; set; } = "dark";
+    public string RoutingMode { get; set; } = "smart_ru"; // smart_ru, global
+    public string DnsProvider { get; set; } = "cloudflare"; // cloudflare, google, quad9, adguard, yandex, xbox
+    public bool EnableSniffing { get; set; } = true;
+    public bool RouteOnlySniffing { get; set; } = true;
+    public bool BlockQuic { get; set; } = true;
+    public bool BlockIpv6 { get; set; } = true;
+    public bool IsFakeDns { get; set; } = false;
+    public bool EnableTlsFragment { get; set; } = false;
+    public string XhttpModeOverride { get; set; } = "auto";
+    public string PingMode { get; set; } = "http"; // tcp, http (Real ping)
+    public string RoutingRegion { get; set; } = "ru";
+    public bool SetupCompleted { get; set; }
+    public bool PersonalServersEnabled { get; set; } = true;
+    public List<SubscriptionUpdateEntry> SubscriptionUpdateHistory { get; set; } = new();
+    public List<TemporaryRoute> TemporaryRoutes { get; set; } = new();
+    public string SubAutoUpdateInterval { get; set; } = "24h"; // 6h, 12h, 24h, manual
+    public string LastSubUpdateTime { get; set; } = string.Empty;
+    public int SocksPort { get; set; } = 10808;
+    public int HttpPort { get; set; } = 10809;
+    public int BufferSizeKb { get; set; } = 4096;
+    public string TcpCongestion { get; set; } = "bbr";
+    public string? SubscriptionUrl { get; set; }
+    public bool AutoStart { get; set; } = true;
+    public bool MinimizeToTray { get; set; } = true;
+    public bool StartMinimized { get; set; } = false;
+    public SubscriptionTier SubscriptionTier { get; set; } = SubscriptionTier.Free;
+    public List<RoutingProfile> RoutingProfiles { get; set; } = new();
+    public string ActiveRoutingProfile { get; set; } = string.Empty;
+    public bool AutoUpdateSubscription { get; set; } = true;
+    public bool EnableAiXboxDns { get; set; } = false;
+    public bool EnableAiBypass { get; set; } = true;
+    public long SubscriptionDataLimit { get; set; } = 0;
+    public long SubscriptionDataUsed { get; set; } = 0;
+    public string SubscriptionExpiry { get; set; } = string.Empty;
+    public string CustomProxyRules { get; set; } = string.Empty;
+    public string CustomDirectRules { get; set; } = string.Empty;
+
+    // --- Advanced Features ---
+    public bool EnableTunMode { get; set; } = false;
+    public bool EnableKillSwitch { get; set; } = false;
+    public bool EnableDnsLeakProtection { get; set; } = false;
+    public bool AutoFallbackFastestServer { get; set; } = true;
+    public string SplitTunnelingMode { get; set; } = "proxy_selected"; // proxy_selected, bypass_selected
+    public string PerAppProxyList { get; set; } = string.Empty;
+    public string PerAppDirectList { get; set; } = string.Empty;
+    public bool EnableGlobalHotkey { get; set; } = true;
+    public string SelectedSubscriptionGroup { get; set; } = "Все";
+}

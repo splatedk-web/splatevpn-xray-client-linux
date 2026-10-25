@@ -1,0 +1,8 @@
+* text=auto
+*.sh text eol=lf
+scripts/splatevpn-network text eol=lf
+scripts/xray-supervisor text eol=lf
+core/xray text eol=lf
+*.dat binary
+*.bin binary
+core/tun2socks binary

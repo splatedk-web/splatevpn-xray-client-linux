@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=SplateVPN
+Comment=VPN client with automatic server balancing
+Exec=/opt/splatevpn/SplateClient
+Icon=splatevpn
+Terminal=false
+Categories=Network;Security;
+StartupNotify=true

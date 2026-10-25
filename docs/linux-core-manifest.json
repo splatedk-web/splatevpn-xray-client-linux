@@ -1,0 +1,14 @@
+[
+  {
+    "url": "https://github.com/XTLS/Xray-core/releases/download/v26.9.9/Xray-linux-64.zip",
+    "archiveSha256": "1eb9175d0f0a8f8149c9230a7fc5ae66ce332ed20a53155ce61fe62e3f58b7df",
+    "file": "xray.bin",
+    "sha256": "c4ae6798c38e0e5343b192406746333cd0ba7ff3eb984f8c4b9939dcb68c3f8a"
+  },
+  {
+    "url": "https://github.com/xjasonlyu/tun2socks/releases/download/v2.7.0/tun2socks-linux-amd64.zip",
+    "archiveSha256": "a612baa287a3b6de6221f74fd02b442a50888508227ecf51e1288a5ccbb77381",
+    "file": "tun2socks",
+    "sha256": "98d545a663b790b4a4100d0c796e1d43d82c5442efdb6e9c4d82e2e32e99c031"
+  }
+]

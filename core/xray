@@ -1,0 +1,26 @@
+#!/usr/bin/python3
+"""Keep capability-bearing Xray isolated from GUI and reap it on parent death."""
+import os
+import select
+import signal
+import subprocess
+import sys
+try:
+    parent = os.pidfd_open(os.getppid())
+    child = subprocess.Popen([os.path.join(os.path.dirname(os.path.realpath(__file__)), "xray.bin"), *sys.argv[1:]])
+    def stop(*args):
+        if child.poll() is None:
+            child.terminate()
+    signal.signal(signal.SIGTERM, stop)
+    while child.poll() is None:
+        if select.select([parent], [], [], 0.2)[0]:
+            stop()
+            try:
+                child.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                child.kill()
+            break
+    sys.exit(child.wait())
+except Exception as error:
+    print(error, file=sys.stderr)
+    sys.exit(1)

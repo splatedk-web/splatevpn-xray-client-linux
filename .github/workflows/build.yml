@@ -1,0 +1,39 @@
+name: Build and verify Linux package
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-x64:
+    runs-on: ubuntu-24.04
+    env:
+      XDG_CONFIG_HOME: ${{ runner.temp }}/splate-config
+      XDG_DATA_HOME: ${{ runner.temp }}/splate-data
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Install QR test dependency
+        run: sudo apt-get update && sudo apt-get install -y zbar-tools
+      - name: Build and run behavioral checks
+        run: |
+          dotnet publish tests/PortChecks -c Release -r linux-x64 --self-contained true -o dist/checks
+          dist/checks/PortChecks "$PWD"
+      - name: Verify real TUN and incoming connections
+        run: sudo python3 tests/network_namespace_check.py
+      - name: Publish and package
+        run: |
+          dotnet publish -c Release -r linux-x64 --self-contained true -o dist/linux-x64
+          sh scripts/build-deb.sh
+          python3 scripts/verify-package.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: splatevpn-linux-x64
+          path: dist/*.deb
