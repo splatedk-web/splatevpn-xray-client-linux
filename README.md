@@ -1,111 +1,53 @@
 # SplateVPN для Linux
 
-Порт исходников SplateClientDesktop 2.14.0. Интерфейс, модели, конфигурации Xray,
-подписки, профили, маршруты, SmartDNS, фильтры и алгоритм балансировки перенесены
-из Desktop. Вместо WPF/WebView2 используется Photino с WebKitGTK.
+Графический клиент Xray для Linux x86_64. Интерфейс работает на Photino и WebKitGTK. Клиент поддерживает системный прокси, TUN, подписки, профили и маршрутизацию. В Linux-ветку также перенесены возможности SplateVPN для Android, описанные ниже.
 
 ## Установка
 
-Целевая платформа: **Linux x86_64**, Ubuntu 24.04+, Linux Mint 22 Cinnamon,
-Debian 13+ с графическим рабочим столом. На данный момент фактические проверки
-выполнены в Ubuntu 26.04 под WSL2; отдельный запуск на Mint и Debian ещё нужен.
-Дистрибутивы с WebKitGTK 4.0 без 4.1 этой сборкой не поддерживаются.
-Нативная оболочка требует glibc 2.38+ и libstdc++ с GLIBCXX_3.4.31;
-готовый пакет поэтому не подходит для Debian 12 и Mint 21.
-
-Готовые пакеты: [GitHub Releases](https://github.com/splatedk-web/splatevpn-xray-client-linux/releases/latest).
-Скачанный пакет устанавливается так:
+Скачайте пакет `amd64.deb` из [GitHub Releases](https://github.com/splatedk-web/splatevpn-xray-client-linux/releases/latest). Из папки загрузок установите пакет, подставив его имя.
 
 ```sh
-sudo apt install ./splatevpn_2.14.3-1_amd64.deb
+sudo apt install ./splatevpn_2.14.4-1_amd64.deb
+/opt/splatevpn/SplateClient
 ```
 
-Запуск из меню приложений или `/opt/splatevpn/SplateClient`.
-.NET включён в пакет. GTK/WebKitGTK и прочие системные зависимости ставит apt.
-Приложение запускается обычным пользователем. Только сетевой помощник TUN
-запрашивает административные права через polkit.
+Целевые системы: Ubuntu 24.04+, Linux Mint 22 и Debian 13 с графическим рабочим столом. Требуются WebKitGTK 4.1, glibc 2.38+ и libstdc++ с GLIBCXX_3.4.31. В пакете есть .NET и Xray. Графическое приложение запускается обычным пользователем, а сетевой помощник запрашивает права через polkit.
 
-## Обязательные возможности
+Версия 2.14.4 доступна в виде готового пакета. Установите его поверх предыдущей версии, чтобы сохранить настройки и подписки.
 
-- **Балансировщик:** исходные режимы `balanced`, `failover`, `initial_only`,
-  подтверждение отказа, резерв, пауза переключений и остановка оптимизации во
-  время спидтеста/загрузки. Для новых установок включён по умолчанию.
-- **Входящие подключения:** TUN не меняет политику firewall и основной default
-  route. Ответы с физических IPv4/IPv6-адресов направляются через основную таблицу,
-  а новый исходящий трафик — в отдельную VPN-таблицу. Изменение адресов учитывается
-  во время работы. Проверены входящие TCP при включённом строгом `rp_filter`.
-  Это сохраняет доступность служб на адресах компьютера; проброс порта со стороны
-  VPN-провайдера, NAT роутера и уже существующие запреты firewall настраиваются
-  отдельно.
-- **Автозапуск:** включён для новых установок, настраивается в интерфейсе.
-  Файл `$XDG_CONFIG_HOME/autostart/splatevpn.desktop` (обычно `~/.config/autostart`)
-  запускает клиент свёрнутым после входа в рабочий стол. Это запуск приложения,
-  подключение VPN выполняется пользователем. Исходный Desktop также не сохраняет
-  отдельную настройку автоматического подключения.
+### Запуск в Windows через WSL
 
-GNOME и Cinnamon используют системный прокси через `org.gnome.system.proxy`.
-Значения сохраняются и восстанавливаются, если их не меняла другая программа.
-Трей использует AppIndicator; GNOME Shell может потребоваться расширение
-AppIndicator, обычно установленное в Ubuntu. Окно остаётся доступно через панель
-задач и повторный запуск из меню.
+Нужны WSL 2, Ubuntu и поддержка графических приложений WSLg. Проверьте дистрибутивы командой `wsl -l -v`. Установите пакет **внутри Ubuntu**, затем запустите из PowerShell.
 
-Глобальная клавиша Super+Alt+V регистрируется в X11. Для Wayland добавьте в
-настройках клавиатуры рабочего стола сочетание для команды:
-
-```sh
-/opt/splatevpn/SplateClient --toggle
+```powershell
+wsl -d Ubuntu --exec /opt/splatevpn/SplateClient
 ```
 
-Новые стабильные версии проверяются в этом Linux-репозитории при запуске
-и кнопкой «Проверить обновления» в настройках. Если опубликована более новая
-версия с готовым пакетом amd64, приложение показывает уведомление и кнопку
-перехода на страницу релиза. Скачивание и установка остаются под управлением
-пользователя.
+Для первого подключения выберите «Системный прокси». Он действует в среде Linux. Приложения Windows используют собственные настройки прокси. Доступность TUN, polkit и раздачи зависит от конфигурации дистрибутива и сети WSL.
 
-## Данные и сеть
+## Возможности Linux 2.14.4
 
-Настройки: `$XDG_CONFIG_HOME/SplateVPN` (обычно `~/.config/SplateVPN`).
-Данные фильтров и геобаз: `$XDG_DATA_HOME/SplateVPN` (обычно `~/.local/share/SplateVPN`).
-Импорт резервных копий Desktop доступен в интерфейсе. Исходный Windows-проект
-при переносе не изменялся; хэши источников записаны в `docs/desktop-source-manifest.json`.
+- **Серверы и подписки.** Встроенные публичные источники можно восстановить из панели управления подписками. Быстрый выбор показывает свежие результаты Real-проверок. Автовыбор учитывает приоритет WTPN, прогревает резервные узлы и использует свежие замеры при повторном подключении.
+- **WTPN.** В публичном исходном коде URL отсутствует. Если у вас есть адрес защищённой подписки от поставщика, закройте клиент и задайте `SPLATE_WTPN_URL` при первом запуске с этим источником. Клиент принимает HTTPS-адрес, отправляет HWID только по разрешённому контракту и скрывает адреса узлов в списке. Уже сохранённый защищённый источник продолжает работать.
 
-TUN владеет адаптером `SplateTUN`, таблицей маршрутов 20214 и приоритетами
-22000–22003. При конфликте помощник прекращает запуск. При отключении, отмене,
-закрытии stdin или смерти процесса GUI удаляются только созданные им ресурсы.
-Xray запускается через наблюдающий процесс, чтобы не оставаться после смерти GUI.
-Для привязки сокетов к физическому интерфейсу пакет выдаёт только `cap_net_raw`
-двоичному файлу Xray; GUI не получает capabilities и не запускается от root.
+  ```bash
+  read -rs -p 'HTTPS-адрес WTPN: ' SPLATE_WTPN_URL
+  printf '\n'
+  export SPLATE_WTPN_URL
+  /opt/splatevpn/SplateClient
+  unset SPLATE_WTPN_URL
+  ```
 
-Kill switch и отдельная глобальная защита DNS отсутствовали как рабочие
-возможности в исходной Desktop-сборке и здесь также недоступны. Не выдавайте их
-за проверенную защиту. Для программ без поддержки прокси используйте TUN.
+- **Маршрутизация.** Поддерживаются условия AND/OR для доменов, IP, портов, сетей и протоколов, выбор сервера для правила, поддерживаемые конструкции Clash и SingBox и SmartDNS через активный VPN. Android-правила по имени пакета в Linux недоступны.
+- **Сеть.** Системный прокси интегрируется с GNOME и Cinnamon. Для TUN и Kill Switch установите `.deb` с сетевыми помощниками. Tor использует локальный Tor и Xray. Для мостов установите транспорт, который требует выбранный мост.
+- **Резервные копии.** Доступны зашифрованный экспорт, импорт совместимых полей Android BackupData, ручной и автоматический WebDAV. Для сохранения учётных данных нужен доступный Secret Service. При восстановлении сохраняется локальная WTPN.
+- **Рабочий стол.** Доступны XDG-автозапуск, трей и глобальная клавиша Super+Alt+V в X11. В Wayland настройте сочетание в рабочем столе для команды `/opt/splatevpn/SplateClient --toggle`.
 
-## Сборка и проверка
+Настройки хранятся в `${XDG_CONFIG_HOME:-$HOME/.config}/SplateVPN`. Геобазы и данные приложения хранятся в `${XDG_DATA_HOME:-$HOME/.local/share}/SplateVPN`.
 
-```sh
-dotnet publish -c Release -r linux-x64 --self-contained true -o dist/linux-x64
-chmod +x dist/linux-x64/SplateClient dist/linux-x64/core/xray dist/linux-x64/core/xray.bin dist/linux-x64/core/tun2socks
-sh scripts/build-deb.sh
+## Другие платформы
 
-dotnet publish tests/PortChecks -c Release -r linux-x64 --self-contained true -o dist/checks
-dist/checks/PortChecks "$PWD"
-sudo python3 tests/network_namespace_check.py
-dbus-run-session -- xvfb-run -a python3 tests/ui_smoke.py
-```
+- [SplateVPN для Android](https://github.com/splatedk-web/splatevpn-xray-client) · [APK и изменения](https://github.com/splatedk-web/splatevpn-xray-client/releases)
+- [SplateVPN для Windows](https://github.com/splatedk-web/splatevpn-xray-client-windows) · [Установщики и изменения](https://github.com/splatedk-web/splatevpn-xray-client-windows/releases)
 
-Сетевой тест создаёт две отдельные network namespace и не меняет сеть хоста.
-Тест прокси запускайте с отдельными XDG-каталогами и `GSETTINGS_BACKEND=keyfile`:
-
-```sh
-dbus-run-session -- env XDG_CONFIG_HOME=/tmp/splate-proxy-test XDG_DATA_HOME=/tmp/splate-proxy-data GSETTINGS_BACKEND=keyfile dist/checks/PortChecks --proxy-only
-```
-
-Проверенные версии ядер и SHA-256: `docs/linux-core-manifest.json`.
-Снимок настоящего Linux-окна и отчёт IPC: `tests/artifacts/linux-ui.png`,
-`tests/artifacts/ui-smoke.json`. Подробности и границы проверок — `docs/VALIDATION.md`.
-
-Настройки балансировщика: «Настройки → Балансировщик» или кнопка
-«Настроить балансировщик» на главной. Режимы, наборы интервалов и сброс
-соответствуют Android. Проверка UI: установите Playwright в tests/node_modules
-и выполните `node tests/balancer-linux-ui.cjs` (в Linux задайте
-`PLAYWRIGHT_CHANNEL=chromium`).
+О проблемах с Linux сообщайте в [Issues](https://github.com/splatedk-web/splatevpn-xray-client-linux/issues). Укажите версию клиента, дистрибутив и режим подключения. Перед отправкой лога скройте ссылки подписок, адреса частных узлов и учётные данные.
